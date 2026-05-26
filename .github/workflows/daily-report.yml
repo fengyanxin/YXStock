@@ -1,0 +1,73 @@
+name: Daily Market Report
+
+on:
+  schedule:
+    # 北京时间 15:35（UTC 07:35），周一至周五
+    - cron: '35 7 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      notify:
+        description: '推送到 IM（钉钉/飞书/企业微信）'
+        required: false
+        default: 'true'
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate daily report
+        env:
+          TZ: Asia/Shanghai
+          SKIP_WEEKEND: 'true'
+          NOTIFY_CHANNELS: ${{ secrets.NOTIFY_CHANNELS }}
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          WECHAT_WORK_WEBHOOK: ${{ secrets.WECHAT_WORK_WEBHOOK }}
+          REPORT_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.notify }}" != "true" ]]; then
+            npm run report:daily -- --out-dir reports
+          else
+            npm run report:daily -- --out-dir reports --notify
+          fi
+
+      - name: Upload report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-report-${{ github.run_number }}
+          path: reports/YXStock_行情日报_*.md
+          retention-days: 90
+
+      - name: Upload HTML artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-report-html-${{ github.run_number }}
+          path: reports/YXStock_行情日报_*.html
+          retention-days: 90
+
+      - name: Commit reports to repo (optional)
+        if: vars.COMMIT_DAILY_REPORTS == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          git diff --staged --quiet || git commit -m "chore: daily market report $(date +%Y-%m-%d)"
+          git push

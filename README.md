@@ -113,6 +113,39 @@ npm run deploy:netlify
 npx netlify deploy --prod --site $NETLIFY_SITE_ID
 ```
 
+## A 股行情日报（定时 + 推送）
+
+脚本路径：`scripts/daily-report/`，生成与桌面版相同结构的 **Markdown + HTML** 报告，并支持推送到 **钉钉 / 飞书 / 企业微信**。
+
+### 本地生成
+
+```bash
+npm run report:daily              # 写入 reports/
+npm run report:daily:push         # 生成并推送（需配置 Webhook）
+```
+
+### GitHub Actions 定时任务
+
+工作流：`.github/workflows/daily-report.yml`
+
+- **默认时间**：北京时间周一至周五 **15:35**（A 股收盘后）
+- **手动运行**：仓库 Actions → *Daily Market Report* → *Run workflow*
+- **产物**：每次运行上传 `reports/YXStock_行情日报_YYYY-MM-DD.md` 与 `.html` Artifacts
+
+在仓库 **Settings → Secrets and variables → Actions** 中配置：
+
+| Secret | 说明 |
+|--------|------|
+| `NOTIFY_CHANNELS` | 可选，如 `dingtalk,feishu,wechat` |
+| `DINGTALK_WEBHOOK` | 钉钉机器人 Webhook |
+| `DINGTALK_SECRET` | 钉钉加签 Secret（若启用） |
+| `FEISHU_WEBHOOK` | 飞书机器人 Webhook |
+| `WECHAT_WORK_WEBHOOK` | 企业微信群机器人 Webhook |
+
+复制 `.env.example` 中日报相关变量可在本地 `report:daily:push` 时复用同一套配置。
+
+若希望将 `reports/` 自动提交回仓库，在 **Variables** 中设置 `COMMIT_DAILY_REPORTS=true`（需已配置 `contents: write` 权限）。
+
 ## 免责声明
 
 本应用展示的数据来自 Stock SDK 所对接的公开行情接口，**仅供学习与参考，不构成任何投资建议**。使用方需自行承担因数据延迟、缺失或接口变更导致的风险。

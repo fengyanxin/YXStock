@@ -18,9 +18,12 @@
     "start": "NODE_ENV=production npm run start -w @yxstock/server",
     "preview": "npm run build && npm run start",
     "deploy:netlify": "npx netlify deploy --prod",
+    "report:daily": "tsx scripts/daily-report/index.ts",
+    "report:daily:push": "tsx scripts/daily-report/index.ts --notify",
     "typecheck": "npm run typecheck -w @yxstock/shared && npm run typecheck -w @yxstock/server && npm run typecheck -w @yxstock/web"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "tsx": "^4.22.3"
   }
 }
