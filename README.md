@@ -124,7 +124,7 @@ npm run report:daily              # 写入 reports/（.md + .html）
 npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片（需 Webhook + 公网 HTML 地址）
 ```
 
-推送默认 **NOTIFY_FORMAT=html**：IM 里显示摘要 + **「查看完整 HTML 日报」** 按钮，在浏览器打开与本地相同的完整 HTML 页面（非纯文本摘要）。
+推送默认 **NOTIFY_FORMAT=html**：IM 消息正文为 **与 `reports/*.md` 一致的完整 Markdown**（表格转为列表以兼容钉钉/飞书），文末附 **HTML 链接/按钮** 用于浏览器查看排版版。
 
 公网 HTML 地址任选其一：
 

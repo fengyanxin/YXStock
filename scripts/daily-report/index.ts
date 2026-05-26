@@ -131,7 +131,7 @@ async function main() {
   if (shouldNotify && !dryRun) {
     const pushPayload = buildPushPayload(report.data, htmlFileName, report.markdown);
 
-    console.log('[daily-report] 推送通知（HTML 完整版链接）…');
+    console.log('[daily-report] 推送通知（完整 MD 正文 + HTML 链接）…');
     logNotifyEnv();
     const { sent, skipped, errors } = await sendNotifications({ payload: pushPayload });
 
@@ -156,7 +156,8 @@ async function main() {
     const p = buildPushPayload(report.data, htmlFileName, report.markdown);
     console.log('--- push preview ---');
     console.log('HTML URL:', p.htmlUrl ?? '(未配置)');
-    console.log(p.teaser);
+    console.log('IM MD 长度:', p.imMarkdown.length);
+    console.log(p.imMarkdown.slice(0, 600));
   }
 }
 
