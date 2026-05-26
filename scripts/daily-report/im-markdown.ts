@@ -4,16 +4,13 @@ import { truncate } from './format.js';
 export function prepareImMarkdown(fullMarkdown: string, htmlUrl?: string): string {
   let md = fullMarkdown.replace(/\r\n/g, '\n').trim();
 
-  // 一级标题在 IM 里常显示过大，统一为三级（保留层级感）
-  md = md.replace(/^# /gm, '### ');
-  md = md.replace(/^## /gm, '#### ');
-
   md = md.replace(/^---\s*$/gm, '\n');
   md = convertPipeTables(md);
-  md = md.replace(/\n{3,}/g, '\n\n');
+  md = headingsToBold(md);
+  md = md.replace(/\n{3,}/g, '\n\n').trim();
 
   if (htmlUrl) {
-    md += `\n\n---\n\n#### 完整 HTML 版（浏览器排版）\n\n[点击查看完整 HTML 日报](${htmlUrl})\n`;
+    md += `\n\n**完整 HTML 版（浏览器排版）**\n\n[点击查看完整 HTML 日报](${htmlUrl})\n`;
   }
 
   const maxLen = Number(process.env.NOTIFY_IM_MAX_CHARS ?? 28000);
@@ -23,6 +20,20 @@ export function prepareImMarkdown(fullMarkdown: string, htmlUrl?: string): strin
   }
 
   return md;
+}
+
+/** ATX 标题 → 加粗行（钉钉/飞书部分场景会原样显示 #，故不用 # 语法） */
+function headingsToBold(md: string): string {
+  return md.replace(/^(#{1,6})\s+(.+)$/gm, (_m, hashes: string, raw: string) => {
+    const level = hashes.length;
+    const title = raw.trim();
+    const inner = title.match(/^\*\*(.+)\*\*$/)?.[1] ?? title;
+    const line = `**${inner}**`;
+    // 一级主标题前后多空一行，章节/小节用加粗区分层级（IM 无字号时靠空行）
+    if (level === 1) return `\n\n${line}\n\n`;
+    if (level === 2) return `\n\n${line}\n\n`;
+    return `\n${line}\n`;
+  });
 }
 
 function convertPipeTables(md: string): string {
@@ -79,7 +90,7 @@ function formatTableAsMarkdownList(headers: string[], rows: string[][]): string 
 export function splitImMarkdown(md: string, maxChunk = 12000): string[] {
   if (md.length <= maxChunk) return [md];
 
-  const sections = md.split(/(?=\n#### )/);
+  const sections = md.split(/(?=\n\*\*[一二三四五六七]、[^*\n]+\*\*\n)/);
   const chunks: string[] = [];
   let buf = '';
 
