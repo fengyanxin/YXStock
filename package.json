@@ -20,6 +20,7 @@
     "deploy:netlify": "npx netlify deploy --prod",
     "report:daily": "tsx scripts/daily-report/index.ts",
     "report:daily:push": "tsx scripts/daily-report/index.ts --notify",
+    "report:notify-test": "tsx scripts/daily-report/index.ts --notify-only",
     "typecheck": "npm run typecheck -w @yxstock/shared && npm run typecheck -w @yxstock/server && npm run typecheck -w @yxstock/web"
   },
   "devDependencies": {

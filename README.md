@@ -136,11 +136,21 @@ npm run report:daily:push         # 生成并推送（需配置 Webhook）
 
 | Secret | 说明 |
 |--------|------|
-| `NOTIFY_CHANNELS` | 可选，如 `dingtalk,feishu,wechat` |
-| `DINGTALK_WEBHOOK` | 钉钉机器人 Webhook |
+| `DINGTALK_WEBHOOK` | **必填其一**：钉钉机器人完整 URL |
+| `FEISHU_WEBHOOK` | **必填其一**：飞书机器人完整 URL（`open.feishu.cn/.../hook/...`） |
+| `NOTIFY_CHANNELS` | 可选；**留空则自动**按已配置的 Webhook 推送 |
 | `DINGTALK_SECRET` | 钉钉加签 Secret（若启用） |
-| `FEISHU_WEBHOOK` | 飞书机器人 Webhook |
+| `DINGTALK_KEYWORD` | 钉钉机器人「自定义关键词」（若启用） |
+| `FEISHU_KEYWORD` | 飞书机器人关键词（若启用） |
 | `WECHAT_WORK_WEBHOOK` | 企业微信群机器人 Webhook |
+
+推送失败时工作流会 **直接报错**（不再静默成功）。请在 Actions 日志中查看 `[notify]` 行。
+
+本地仅测推送（不重新拉行情）：
+
+```bash
+npm run report:notify-test -- --out-dir reports
+```
 
 复制 `.env.example` 中日报相关变量可在本地 `report:daily:push` 时复用同一套配置。
 

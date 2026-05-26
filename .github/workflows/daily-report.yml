@@ -9,11 +9,14 @@ on:
       notify:
         description: '推送到 IM（钉钉/飞书/企业微信）'
         required: false
-        default: 'true'
+        default: true
         type: boolean
 
 permissions:
   contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   report:
@@ -26,28 +29,30 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate daily report
+      - name: Generate report and push to IM
         env:
           TZ: Asia/Shanghai
           SKIP_WEEKEND: 'true'
-          NOTIFY_CHANNELS: ${{ secrets.NOTIFY_CHANNELS }}
           DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
           DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+          DINGTALK_KEYWORD: ${{ secrets.DINGTALK_KEYWORD }}
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_KEYWORD: ${{ secrets.FEISHU_KEYWORD }}
           WECHAT_WORK_WEBHOOK: ${{ secrets.WECHAT_WORK_WEBHOOK }}
+          NOTIFY_CHANNELS: ${{ secrets.NOTIFY_CHANNELS }}
           REPORT_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.notify }}" != "true" ]]; then
-            npm run report:daily -- --out-dir reports
-          else
-            npm run report:daily -- --out-dir reports --notify
+          NOTIFY_FLAG=""
+          if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ inputs.notify }}" == "true" ]]; then
+            NOTIFY_FLAG="--notify"
           fi
+          npm run report:daily -- --out-dir reports $NOTIFY_FLAG
 
       - name: Upload report artifacts
         uses: actions/upload-artifact@v4
@@ -55,6 +60,7 @@ jobs:
           name: daily-report-${{ github.run_number }}
           path: reports/YXStock_行情日报_*.md
           retention-days: 90
+          if-no-files-found: error
 
       - name: Upload HTML artifacts
         uses: actions/upload-artifact@v4
@@ -62,6 +68,7 @@ jobs:
           name: daily-report-html-${{ github.run_number }}
           path: reports/YXStock_行情日报_*.html
           retention-days: 90
+          if-no-files-found: error
 
       - name: Commit reports to repo (optional)
         if: vars.COMMIT_DAILY_REPORTS == 'true'
