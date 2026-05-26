@@ -1,6 +1,6 @@
 import type { DailyReportData } from './types.js';
 import { resolveHtmlReportUrl } from './html-url.js';
-import { prepareImMarkdown } from './im-markdown.js';
+import { prepareDingTalkMarkdown, prepareImMarkdown } from './im-markdown.js';
 
 export interface PushPayload {
   title: string;
@@ -8,8 +8,10 @@ export interface PushPayload {
   htmlFileName: string;
   /** 与 reports/*.md 一致的完整正文 */
   fullMarkdown: string;
-  /** 钉钉/飞书兼容后的完整 MD 正文（用于推送预览） */
+  /** 飞书等：完整 MD（表格→列表，标题加粗） */
   imMarkdown: string;
+  /** 钉钉：官方 markdown 子集（# 标题、列表、加粗） */
+  dingTalkMarkdown: string;
   /** @deprecated 使用 imMarkdown */
   markdown: string;
 }
@@ -25,6 +27,7 @@ export function buildPushPayload(
 
   const htmlUrl = resolveHtmlReportUrl(htmlFileName);
   const imMarkdown = prepareImMarkdown(fullMarkdown, htmlUrl);
+  const dingTalkMarkdown = prepareDingTalkMarkdown(fullMarkdown, htmlUrl);
 
   return {
     title,
@@ -32,6 +35,7 @@ export function buildPushPayload(
     htmlFileName,
     fullMarkdown,
     imMarkdown,
+    dingTalkMarkdown,
     markdown: imMarkdown,
   };
 }

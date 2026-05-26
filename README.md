@@ -124,7 +124,7 @@ npm run report:daily              # 写入 reports/（.md + .html）
 npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片（需 Webhook + 公网 HTML 地址）
 ```
 
-推送默认 **NOTIFY_FORMAT=html**：IM 消息正文为 **与 `reports/*.md` 一致的完整 Markdown**（表格转为列表以兼容钉钉/飞书），文末附 **HTML 链接/按钮** 用于浏览器查看排版版。
+推送默认 **NOTIFY_FORMAT=html**：IM 正文为完整日报（表格转列表）。**钉钉**使用官方 `markdown` 消息类型（`#` 标题、加粗、列表）；**飞书**使用 `lark_md`。文末附 HTML 链接。若钉钉仍显示源码，确认未设置 `DINGTALK_PREFER_TEXT=true`。
 
 公网 HTML 地址任选其一：
 

@@ -169,8 +169,10 @@ async function main() {
     const p = buildPushPayload(report.data, htmlFileName, report.markdown);
     console.log('--- push preview ---');
     console.log('HTML URL:', p.htmlUrl ?? '(未配置)');
-    console.log('IM MD 长度:', p.imMarkdown.length);
-    console.log(p.imMarkdown.slice(0, 600));
+    console.log('飞书 MD 长度:', p.imMarkdown.length);
+    console.log('钉钉 MD 长度:', p.dingTalkMarkdown.length);
+    console.log('--- 钉钉预览 ---');
+    console.log(p.dingTalkMarkdown.slice(0, 800));
   }
 }
 

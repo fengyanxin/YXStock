@@ -1,7 +1,11 @@
 import crypto from 'node:crypto';
 import { truncate } from './format.js';
 import type { PushPayload } from './push-payload.js';
-import { splitImMarkdown } from './im-markdown.js';
+import {
+  plainTextFromDingTalkMarkdown,
+  splitDingTalkMarkdown,
+  splitImMarkdown,
+} from './im-markdown.js';
 
 export type NotifyChannel = 'dingtalk' | 'feishu' | 'wechat';
 export type NotifyFormat = 'html' | 'markdown';
@@ -148,34 +152,26 @@ async function sendDingTalkText(
   await postJson(url, { msgtype: 'text', text: { content } }, 'DingTalk-text');
 }
 
-/** 优先 text（兼容性最好），可选 DINGTALK_PREFER_TEXT=false 时先 markdown */
+/** 默认 markdown 渲染；仅 DINGTALK_PREFER_TEXT=true 时用纯文本 */
 async function sendDingTalkChunk(
   webhook: string,
   secret: string | undefined,
   partTitle: string,
   chunk: string,
 ): Promise<void> {
-  const preferText = process.env.DINGTALK_PREFER_TEXT !== 'false';
+  const preferText = process.env.DINGTALK_PREFER_TEXT === 'true';
 
   if (preferText) {
-    try {
-      await sendDingTalkText(webhook, secret, partTitle, chunk);
-      return;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn('[notify] 钉钉 text 失败，尝试 markdown:', msg);
-    }
+    await sendDingTalkText(webhook, secret, partTitle, plainTextFromDingTalkMarkdown(chunk));
+    return;
   }
 
   try {
     await sendDingTalkMarkdownMessage(webhook, secret, partTitle, chunk);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (preferText || isDingTalkKeywordError(msg)) {
-      await sendDingTalkText(webhook, secret, partTitle, chunk);
-      return;
-    }
-    throw err;
+    console.warn('[notify] 钉钉 markdown 失败，降级纯文本:', msg);
+    await sendDingTalkText(webhook, secret, partTitle, plainTextFromDingTalkMarkdown(chunk));
   }
 }
 
@@ -185,8 +181,8 @@ export async function sendDingTalkHtml(
   secret: string | undefined,
   payload: PushPayload,
 ): Promise<void> {
-  const body = payload.imMarkdown;
-  const chunks = splitImMarkdown(body, 12000);
+  const body = payload.dingTalkMarkdown;
+  const chunks = splitDingTalkMarkdown(body, 12000);
 
   for (let i = 0; i < chunks.length; i++) {
     const partTitle = chunks.length > 1 ? `${payload.title} (${i + 1}/${chunks.length})` : payload.title;
@@ -292,6 +288,7 @@ export async function sendFeishuMarkdown(webhook: string, title: string, markdow
     htmlFileName: '',
     fullMarkdown: markdown,
     imMarkdown: markdown,
+    dingTalkMarkdown: markdown,
     markdown,
   };
   await sendFeishuHtml(webhook, payload);
@@ -392,6 +389,7 @@ export function logNotifyEnv(): void {
   if (process.env.DINGTALK_WEBHOOK?.trim() && !channels.includes('dingtalk')) {
     console.warn('[notify] 已配置 DINGTALK_WEBHOOK 但 NOTIFY_CHANNELS 未含 dingtalk，将跳过钉钉');
   }
+  console.log('[notify] DINGTALK_PREFER_TEXT =', process.env.DINGTALK_PREFER_TEXT === 'true', '(默认 false=markdown 渲染)');
   console.log('[notify] FEISHU_WEBHOOK =', mask(process.env.FEISHU_WEBHOOK));
   console.log('[notify] REPORT_HTML_URL =', mask(process.env.REPORT_HTML_URL));
 }
@@ -402,7 +400,9 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
   const result: NotifyResult = { sent: [], skipped: [], errors: [] };
   const { payload } = opts;
 
-  console.log(`[notify] IM 正文长度: ${payload.imMarkdown.length} 字符（完整 MD 兼容格式）`);
+  console.log(
+    `[notify] 正文长度: 飞书 ${payload.imMarkdown.length} 字 · 钉钉 ${payload.dingTalkMarkdown.length} 字`,
+  );
 
   if (channels.length === 0) {
     console.error('[notify] 没有可推送的渠道');
@@ -420,7 +420,12 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
         if (format === 'html' && payload.htmlUrl) {
           await sendDingTalkHtml(webhook, getDingTalkSecret(), payload);
         } else {
-          await sendDingTalkMarkdown(webhook, getDingTalkSecret(), payload.title, payload.imMarkdown);
+          await sendDingTalkMarkdown(
+            webhook,
+            getDingTalkSecret(),
+            payload.title,
+            payload.dingTalkMarkdown,
+          );
         }
         result.sent.push('dingtalk');
         console.log('[notify] 钉钉推送成功');
