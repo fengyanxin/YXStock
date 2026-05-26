@@ -71,17 +71,45 @@ PORT=3001
 
 ## 部署说明
 
+### 本地生产模式
+
 1. **生产构建**
 
    ```bash
    npm run build
    ```
 
-2. **运行 BFF**：`npm run start -w @yxstock/server`（需 Node 18+）
+2. **运行同源服务（静态前端 + /api）**
 
-3. **静态前端**：将 `apps/web/dist` 部署到 CDN / EdgeOne Pages；`/api` 请求需反向代理到 BFF 所在域名。
+   ```bash
+   npm run start
+   ```
 
-4. **同源部署（推荐）**：在 Hono 中增加静态文件中间件，由同一 Node 进程托管 `web/dist` 与 `/api`。
+### Netlify 部署（已适配）
+
+项目已包含 `netlify.toml` 与 `netlify/functions/api.ts`：
+
+- 静态站点发布目录：`apps/web/dist`
+- `/api/*` 会重写到 Netlify Function，并复用 `apps/server/src` 的 Hono 路由
+
+首次部署步骤：
+
+```bash
+# 1) 登录 Netlify
+npx netlify login
+
+# 2) 关联或新建站点
+npx netlify init
+
+# 3) 生产部署
+npm run deploy:netlify
+```
+
+如果在 CI 中部署，建议设置 `NETLIFY_AUTH_TOKEN` 与 `NETLIFY_SITE_ID` 后执行：
+
+```bash
+npx netlify deploy --prod --site $NETLIFY_SITE_ID
+```
 
 ## 免责声明
 

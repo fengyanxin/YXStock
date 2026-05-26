@@ -1,0 +1,1 @@
+{"functions":[{"bundler":"esbuild","buildData":{"runtimeAPIVersion":1},"mainFile":"/Users/hepeng/Desktop/YXStock/netlify/functions/api.ts","name":"api","priority":10,"path":"/Users/hepeng/Desktop/YXStock/apps/web/.netlify/functions/api.zip","runtime":"js"}],"system":{"arch":"arm64","platform":"darwin"},"timestamp":1779759656103,"version":1}
