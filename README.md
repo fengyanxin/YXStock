@@ -2,6 +2,8 @@
 
 基于 [Stock SDK](https://chengzuopeng.github.io/stock-sdk/api/) 的 A 股行情展示与分析 Web 应用。
 
+演示地址：https://yxstock.netlify.app
+
 ## 功能
 
 - **大盘**：主要指数、涨跌家数、行业/概念 TOP、北向与涨停池概览
@@ -85,7 +87,7 @@ PORT=3001
    npm run start
    ```
 
-### Netlify 部署（已适配）
+### Netlify 部署
 
 项目已包含 `netlify.toml` 与 `netlify/functions/api.ts`：
 
