@@ -6,11 +6,9 @@ import { quotesRoutes } from './routes/quotes.js';
 import { stockRoutes } from './routes/stock.js';
 import { searchRoutes } from './routes/search.js';
 import { sectorRoutes } from './routes/sector.js';
-import { registerStatic } from './static.js';
 import { getCorsOrigins, isProduction } from './config.js';
 
-export function createApp(options?: { withStatic?: boolean }) {
-  const withStatic = options?.withStatic ?? false;
+export function createApp() {
   const app = new Hono();
 
   app.use(
@@ -39,7 +37,5 @@ export function createApp(options?: { withStatic?: boolean }) {
   api.route('/sector', sectorRoutes);
   app.route('/api', api);
 
-  const staticOk = withStatic ? registerStatic(app) : false;
-
-  return { app, staticOk };
+  return app;
 }

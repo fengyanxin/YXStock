@@ -1,8 +1,10 @@
 import { serve } from '@hono/node-server';
 import { getPort } from './config.js';
 import { createApp } from './app.js';
+import { registerStatic } from './static.js';
 
-const { app, staticOk } = createApp({ withStatic: true });
+const app = createApp();
+const staticOk = registerStatic(app);
 
 const port = getPort();
 console.log(`YXStock server http://localhost:${port}`);

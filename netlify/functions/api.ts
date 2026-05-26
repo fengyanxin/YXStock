@@ -17,7 +17,7 @@ type NetlifyResult = {
   isBase64Encoded?: boolean;
 };
 
-const { app } = createApp({ withStatic: false });
+const app = createApp();
 
 function buildApiPath(eventPath: string): string {
   const prefix = '/.netlify/functions/api';

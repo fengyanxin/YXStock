@@ -1,11 +1,8 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const serverDir = path.dirname(fileURLToPath(import.meta.url));
 
 /** 编译后位于 apps/server/dist，静态资源在 apps/web/dist */
 export function resolveWebDist(): string {
-  return path.resolve(serverDir, '../../web/dist');
+  return path.resolve(process.cwd(), 'apps/web/dist');
 }
 
 export function getPort(): number {
