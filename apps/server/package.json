@@ -1,0 +1,23 @@
+{
+  "name": "@yxstock/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.3",
+    "@yxstock/shared": "*",
+    "hono": "^4.7.10",
+    "stock-sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.19.4",
+    "typescript": "~5.9.3"
+  }
+}

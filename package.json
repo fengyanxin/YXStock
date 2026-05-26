@@ -1,0 +1,25 @@
+{
+  "name": "yxstock",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A 股行情展示与分析 Web 应用",
+  "engines": {
+    "node": ">=18"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"npm run dev -w @yxstock/server\" \"npm run dev -w @yxstock/web\"",
+    "dev:server": "npm run dev -w @yxstock/server",
+    "dev:web": "npm run dev -w @yxstock/web",
+    "build": "npm run build -w @yxstock/shared && npm run build -w @yxstock/server && npm run build -w @yxstock/web",
+    "start": "NODE_ENV=production npm run start -w @yxstock/server",
+    "preview": "npm run build && npm run start",
+    "typecheck": "npm run typecheck -w @yxstock/shared && npm run typecheck -w @yxstock/server && npm run typecheck -w @yxstock/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
