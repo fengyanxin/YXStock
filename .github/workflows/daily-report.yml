@@ -17,6 +17,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NOTIFY_FORMAT: html
 
 jobs:
   report:
@@ -35,10 +36,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate report and push to IM
+      - name: Generate daily report (MD + HTML)
         env:
           TZ: Asia/Shanghai
           SKIP_WEEKEND: 'true'
+        run: npm run report:daily -- --out-dir reports
+
+      - name: Commit reports for HTML preview link
+        if: github.event_name == 'schedule' || inputs.notify == true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          git diff --staged --quiet || git commit -m "chore: daily market report $(date +%Y-%m-%d)"
+          git push
+
+      - name: Push HTML report link to IM
+        if: github.event_name == 'schedule' || inputs.notify == true
+        env:
+          TZ: Asia/Shanghai
+          NOTIFY_FORMAT: html
+          REPORT_USE_GITHUB_RAW: 'true'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
           DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
           DINGTALK_KEYWORD: ${{ secrets.DINGTALK_KEYWORD }}
@@ -46,13 +66,9 @@ jobs:
           FEISHU_KEYWORD: ${{ secrets.FEISHU_KEYWORD }}
           WECHAT_WORK_WEBHOOK: ${{ secrets.WECHAT_WORK_WEBHOOK }}
           NOTIFY_CHANNELS: ${{ secrets.NOTIFY_CHANNELS }}
-          REPORT_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: |
-          NOTIFY_FLAG=""
-          if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ inputs.notify }}" == "true" ]]; then
-            NOTIFY_FLAG="--notify"
-          fi
-          npm run report:daily -- --out-dir reports $NOTIFY_FLAG
+          REPORT_HTML_BASE_URL: ${{ secrets.REPORT_HTML_BASE_URL }}
+          REPORT_HTML_URL: ${{ secrets.REPORT_HTML_URL }}
+        run: npm run report:daily -- --out-dir reports --notify-only
 
       - name: Upload report artifacts
         uses: actions/upload-artifact@v4
@@ -69,12 +85,3 @@ jobs:
           path: reports/YXStock_行情日报_*.html
           retention-days: 90
           if-no-files-found: error
-
-      - name: Commit reports to repo (optional)
-        if: vars.COMMIT_DAILY_REPORTS == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reports/
-          git diff --staged --quiet || git commit -m "chore: daily market report $(date +%Y-%m-%d)"
-          git push

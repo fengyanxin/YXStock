@@ -143,7 +143,7 @@ ${narrative.fundFlowText}
 export function renderPushMarkdown(data: DailyReportData, narrative: ReportNarrative): string {
   const sh = data.indices.find((i) => i.name.includes('上证'));
   const lines = [
-    `## YXStock A股日报 ${data.tradeDate}（${data.weekdayLabel}）`,
+    `日报 | YXStock A股行情 ${data.tradeDate}（${data.weekdayLabel}）`,
     '',
     narrative.overviewLead.replace(/\*\*/g, ''),
     '',

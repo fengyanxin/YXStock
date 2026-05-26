@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 import { truncate } from './format.js';
+import type { PushPayload } from './push-payload.js';
 
 export type NotifyChannel = 'dingtalk' | 'feishu' | 'wechat';
+export type NotifyFormat = 'html' | 'markdown';
 
 export interface NotifyOptions {
-  title: string;
-  markdown: string;
+  payload: PushPayload;
   channels?: NotifyChannel[];
 }
 
@@ -13,6 +14,11 @@ export interface NotifyResult {
   sent: NotifyChannel[];
   skipped: { channel: NotifyChannel; reason: string }[];
   errors: { channel: NotifyChannel; error: string }[];
+}
+
+function getNotifyFormat(): NotifyFormat {
+  const f = (process.env.NOTIFY_FORMAT ?? 'html').trim().toLowerCase();
+  return f === 'markdown' ? 'markdown' : 'html';
 }
 
 function signedDingTalkUrl(webhook: string, secret?: string): string {
@@ -26,7 +32,7 @@ function signedDingTalkUrl(webhook: string, secret?: string): string {
   return `${webhook.trim()}${sep}timestamp=${timestamp}&sign=${sign}`;
 }
 
-function applyKeyword(text: string, keyword: string | undefined): string {
+function withKeyword(text: string, keyword?: string): string {
   const kw = keyword?.trim();
   if (!kw || text.includes(kw)) return text;
   return `${kw}\n\n${text}`;
@@ -70,63 +76,198 @@ async function postJson(url: string, body: unknown, label: string): Promise<void
   assertApiOk(data, label);
 }
 
-export async function sendDingTalk(
+/** 钉钉：打开完整 HTML（链接卡片，含关键词） */
+export async function sendDingTalkHtml(
+  webhook: string,
+  secret: string | undefined,
+  payload: PushPayload,
+): Promise<void> {
+  const url = signedDingTalkUrl(webhook, secret);
+  const keyword = process.env.DINGTALK_KEYWORD?.trim();
+  const title = withKeyword(payload.title, keyword);
+  const htmlUrl = payload.htmlUrl;
+
+  if (!htmlUrl) {
+    await sendDingTalkText(webhook, secret, title, payload.markdown);
+    return;
+  }
+
+  const cardText = withKeyword(
+    `${payload.teaser}\n\n请在浏览器中打开查看完整 HTML 排版（与本地生成的 .html 文件一致）。`,
+    keyword,
+  );
+
+  const tryActionCard = () =>
+    postJson(
+      url,
+      {
+        msgtype: 'actionCard',
+        actionCard: {
+          title,
+          text: truncate(cardText, 8000),
+          btnOrientation: '0',
+          singleTitle: '查看完整 HTML 日报',
+          singleURL: htmlUrl,
+        },
+      },
+      'DingTalk-actionCard',
+    );
+
+  const tryLink = () =>
+    postJson(
+      url,
+      {
+        msgtype: 'link',
+        link: {
+          title,
+          text: truncate(cardText, 500),
+          messageUrl: htmlUrl,
+          picUrl: process.env.REPORT_PREVIEW_IMAGE_URL?.trim() || '',
+        },
+      },
+      'DingTalk-link',
+    );
+
+  try {
+    await tryActionCard();
+    return;
+  } catch (e1) {
+    console.warn('[notify] 钉钉 actionCard 失败，尝试 link:', e1 instanceof Error ? e1.message : e1);
+  }
+
+  try {
+    await tryLink();
+    return;
+  } catch (e2) {
+    const msg = e2 instanceof Error ? e2.message : String(e2);
+    if (msg.includes('310000') || msg.includes('关键词')) {
+      await sendDingTalkText(webhook, secret, title, `${cardText}\n\n${htmlUrl}`);
+      return;
+    }
+    throw e2;
+  }
+}
+
+async function sendDingTalkText(
+  webhook: string,
+  secret: string | undefined,
+  title: string,
+  body: string,
+): Promise<void> {
+  const url = signedDingTalkUrl(webhook, secret);
+  const keyword = process.env.DINGTALK_KEYWORD?.trim();
+  const content = truncate(withKeyword(`${title}\n\n${body}`, keyword), 18000);
+  await postJson(url, { msgtype: 'text', text: { content } }, 'DingTalk-text');
+}
+
+/** 飞书：交互卡片 + 打开 HTML 按钮 */
+export async function sendFeishuHtml(webhook: string, payload: PushPayload): Promise<void> {
+  const url = webhook.trim();
+  const title = payload.title;
+  const htmlUrl = payload.htmlUrl;
+  const text = withKeyword(
+    truncate(`${title}\n\n${payload.teaser}${htmlUrl ? `\n\n${htmlUrl}` : ''}`, 28000),
+    process.env.FEISHU_KEYWORD,
+  );
+
+  if (htmlUrl && (url.includes('open.feishu.cn') || url.includes('open.larksuite.com'))) {
+    try {
+      await postJson(
+        url,
+        {
+          msg_type: 'interactive',
+          card: {
+            header: {
+              title: { tag: 'plain_text', content: title.slice(0, 100) },
+              template: 'blue',
+            },
+            elements: [
+              {
+                tag: 'div',
+                text: { tag: 'lark_md', content: payload.teaser },
+              },
+              {
+                tag: 'action',
+                actions: [
+                  {
+                    tag: 'button',
+                    text: { tag: 'plain_text', content: '查看完整 HTML 日报' },
+                    type: 'primary',
+                    url: htmlUrl,
+                  },
+                ],
+              },
+              {
+                tag: 'note',
+                elements: [
+                  {
+                    tag: 'plain_text',
+                    content: '将在浏览器打开完整 HTML 页面（深色排版、全部章节）',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        'Feishu-interactive',
+      );
+      return;
+    } catch (e) {
+      console.warn('[notify] 飞书 interactive 失败，降级 text:', e instanceof Error ? e.message : e);
+    }
+  }
+
+  await postJson(url, { msg_type: 'text', content: { text } }, 'Feishu-text');
+}
+
+/** 企业微信：图文链接打开 HTML */
+export async function sendWeChatWorkHtml(webhook: string, payload: PushPayload): Promise<void> {
+  const htmlUrl = payload.htmlUrl;
+  if (!htmlUrl) {
+    await postJson(
+      webhook.trim(),
+      { msgtype: 'markdown', markdown: { content: truncate(payload.markdown, 3800) } },
+      'WeChatWork',
+    );
+    return;
+  }
+
+  await postJson(
+    webhook.trim(),
+    {
+      msgtype: 'news',
+      news: {
+        articles: [
+          {
+            title: payload.title.slice(0, 128),
+            description: truncate(payload.teaser, 512),
+            url: htmlUrl,
+            picurl: process.env.REPORT_PREVIEW_IMAGE_URL?.trim() || '',
+          },
+        ],
+      },
+    },
+    'WeChatWork-news',
+  );
+}
+
+export async function sendDingTalkMarkdown(
   webhook: string,
   secret: string | undefined,
   title: string,
   markdown: string,
 ): Promise<void> {
-  const url = signedDingTalkUrl(webhook, secret);
-  const text = applyKeyword(truncate(markdown, 18000), process.env.DINGTALK_KEYWORD);
-  await postJson(
-    url,
-    {
-      msgtype: 'markdown',
-      markdown: { title: applyKeyword(title, process.env.DINGTALK_KEYWORD), text },
-    },
-    'DingTalk',
-  );
+  await sendDingTalkText(webhook, secret, title, markdown);
 }
 
-export async function sendWeChatWork(webhook: string, markdown: string): Promise<void> {
-  const content = truncate(markdown, 3800);
-  await postJson(
-    webhook.trim(),
-    { msgtype: 'markdown', markdown: { content } },
-    'WeChatWork',
-  );
-}
-
-/** 飞书自定义机器人：优先 text（兼容性最好），失败时不再抛二次错误 */
-export async function sendFeishu(webhook: string, title: string, markdown: string): Promise<void> {
+export async function sendFeishuMarkdown(
+  webhook: string,
+  title: string,
+  markdown: string,
+): Promise<void> {
   const url = webhook.trim();
-  const text = applyKeyword(truncate(`${title}\n\n${markdown}`, 28000), process.env.FEISHU_KEYWORD);
-
-  // 方式 1：纯文本（绝大多数群机器人可用）
-  try {
-    await postJson(url, { msg_type: 'text', content: { text } }, 'Feishu-text');
-    return;
-  } catch (e1) {
-    console.warn('[notify] Feishu text 失败，尝试 post:', e1 instanceof Error ? e1.message : e1);
-  }
-
-  // 方式 2：富文本 post
-  const lines = text.split('\n').slice(0, 40);
-  await postJson(
-    url,
-    {
-      msg_type: 'post',
-      content: {
-        post: {
-          zh_cn: {
-            title: title.slice(0, 100),
-            content: lines.map((line) => [{ tag: 'text', text: line || ' ' }]),
-          },
-        },
-      },
-    },
-    'Feishu-post',
-  );
+  const text = withKeyword(truncate(`${title}\n\n${markdown}`, 28000), process.env.FEISHU_KEYWORD);
+  await postJson(url, { msg_type: 'text', content: { text } }, 'Feishu-text');
 }
 
 export function resolveChannels(): NotifyChannel[] {
@@ -138,7 +279,6 @@ export function resolveChannels(): NotifyChannel[] {
       .filter((s): s is NotifyChannel => s === 'dingtalk' || s === 'feishu' || s === 'wechat');
     if (parsed.length > 0) return parsed;
   }
-  // 未设置或无效时：按已配置的 Webhook 自动推断
   const auto: NotifyChannel[] = [];
   if (process.env.DINGTALK_WEBHOOK?.trim()) auto.push('dingtalk');
   if (process.env.FEISHU_WEBHOOK?.trim()) auto.push('feishu');
@@ -148,21 +288,31 @@ export function resolveChannels(): NotifyChannel[] {
 
 export function logNotifyEnv(): void {
   const mask = (v: string | undefined) => (v?.trim() ? `已配置(${v.trim().slice(0, 28)}…)` : '未配置');
+  console.log('[notify] NOTIFY_FORMAT =', getNotifyFormat());
   console.log('[notify] NOTIFY_CHANNELS =', process.env.NOTIFY_CHANNELS ?? '(自动推断)');
   console.log('[notify] resolveChannels =', resolveChannels().join(', ') || '(无)');
+  console.log('[notify] REPORT_HTML_URL =', mask(process.env.REPORT_HTML_URL));
+  console.log('[notify] REPORT_HTML_BASE_URL =', mask(process.env.REPORT_HTML_BASE_URL));
+  console.log('[notify] REPORT_USE_GITHUB_RAW =', process.env.REPORT_USE_GITHUB_RAW ?? 'false');
   console.log('[notify] DINGTALK_WEBHOOK =', mask(process.env.DINGTALK_WEBHOOK));
-  console.log('[notify] DINGTALK_SECRET =', process.env.DINGTALK_SECRET?.trim() ? '已配置' : '未配置');
   console.log('[notify] FEISHU_WEBHOOK =', mask(process.env.FEISHU_WEBHOOK));
-  console.log('[notify] WECHAT_WORK_WEBHOOK =', mask(process.env.WECHAT_WORK_WEBHOOK));
 }
 
 export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResult> {
   const channels = opts.channels ?? resolveChannels();
+  const format = getNotifyFormat();
   const result: NotifyResult = { sent: [], skipped: [], errors: [] };
+  const { payload } = opts;
 
   if (channels.length === 0) {
-    console.error('[notify] 没有可推送的渠道：请在 Secrets 中配置 DINGTALK_WEBHOOK / FEISHU_WEBHOOK 等');
+    console.error('[notify] 没有可推送的渠道');
     return result;
+  }
+
+  if (format === 'html' && !payload.htmlUrl) {
+    console.warn(
+      '[notify] NOTIFY_FORMAT=html 但未解析到 HTML 公网 URL，将推送 Markdown 摘要。请配置 REPORT_HTML_BASE_URL 或开启 workflow 中的 commit-reports',
+    );
   }
 
   for (const ch of channels) {
@@ -173,7 +323,11 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
           result.skipped.push({ channel: ch, reason: 'DINGTALK_WEBHOOK 未配置' });
           continue;
         }
-        await sendDingTalk(webhook, process.env.DINGTALK_SECRET, opts.title, opts.markdown);
+        if (format === 'html' && payload.htmlUrl) {
+          await sendDingTalkHtml(webhook, process.env.DINGTALK_SECRET, payload);
+        } else {
+          await sendDingTalkMarkdown(webhook, process.env.DINGTALK_SECRET, payload.title, payload.markdown);
+        }
         result.sent.push('dingtalk');
         console.log('[notify] 钉钉推送成功');
       } else if (ch === 'feishu') {
@@ -182,10 +336,11 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
           result.skipped.push({ channel: ch, reason: 'FEISHU_WEBHOOK 未配置' });
           continue;
         }
-        if (!webhook.includes('open.feishu.cn') && !webhook.includes('open.larksuite.com')) {
-          console.warn('[notify] FEISHU_WEBHOOK 域名异常，请确认来自飞书群机器人');
+        if (format === 'html' && payload.htmlUrl) {
+          await sendFeishuHtml(webhook, payload);
+        } else {
+          await sendFeishuMarkdown(webhook, payload.title, payload.markdown);
         }
-        await sendFeishu(webhook, opts.title, opts.markdown);
         result.sent.push('feishu');
         console.log('[notify] 飞书推送成功');
       } else if (ch === 'wechat') {
@@ -194,7 +349,7 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
           result.skipped.push({ channel: ch, reason: 'WECHAT_WORK_WEBHOOK 未配置' });
           continue;
         }
-        await sendWeChatWork(webhook, opts.markdown);
+        await sendWeChatWorkHtml(webhook, payload);
         result.sent.push('wechat');
         console.log('[notify] 企业微信推送成功');
       }
@@ -203,6 +358,10 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
       result.errors.push({ channel: ch, error: msg });
       console.error(`[notify] ${ch} 推送失败:`, msg);
     }
+  }
+
+  if (payload.htmlUrl) {
+    console.log('[notify] HTML 日报链接:', payload.htmlUrl);
   }
 
   return result;

@@ -120,9 +120,17 @@ npx netlify deploy --prod --site $NETLIFY_SITE_ID
 ### 本地生成
 
 ```bash
-npm run report:daily              # 写入 reports/
-npm run report:daily:push         # 生成并推送（需配置 Webhook）
+npm run report:daily              # 写入 reports/（.md + .html）
+npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片（需 Webhook + 公网 HTML 地址）
 ```
+
+推送默认 **NOTIFY_FORMAT=html**：IM 里显示摘要 + **「查看完整 HTML 日报」** 按钮，在浏览器打开与本地相同的完整 HTML 页面（非纯文本摘要）。
+
+公网 HTML 地址任选其一：
+
+- `REPORT_HTML_BASE_URL`：例如 `https://你的站点/reports`（可设 `COPY_REPORT_TO_WEB_PUBLIC=true` 同步到 Netlify 静态目录）
+- `REPORT_HTML_URL`：单次完整 URL
+- GitHub Actions：推送前自动 `commit reports/`，并生成 `htmlpreview.github.io` 预览链接
 
 ### GitHub Actions 定时任务
 
@@ -143,8 +151,14 @@ npm run report:daily:push         # 生成并推送（需配置 Webhook）
 | `DINGTALK_KEYWORD` | 钉钉机器人「自定义关键词」（若启用） |
 | `FEISHU_KEYWORD` | 飞书机器人关键词（若启用） |
 | `WECHAT_WORK_WEBHOOK` | 企业微信群机器人 Webhook |
+| `REPORT_HTML_BASE_URL` | 可选：已部署的 HTML 目录，如 `https://xxx.netlify.app/reports` |
+| `REPORT_HTML_URL` | 可选：直接指定当日 HTML 完整 URL |
 
 推送失败时工作流会 **直接报错**（不再静默成功）。请在 Actions 日志中查看 `[notify]` 行。
+
+**钉钉 errcode=310000 关键词不匹配：** 打开群机器人设置查看「自定义关键词」，在 Secrets 添加 `DINGTALK_KEYWORD`（例如关键词是 `YXStock` 就填 `YXStock`）。未配置时会自动尝试在正文加入「日报」。
+
+**飞书 Webhook：** 请使用群机器人里的 `https://open.feishu.cn/open-apis/bot/v2/hook/...` 地址（不要用 Flow 链接，除非已验证可用）。
 
 本地仅测推送（不重新拉行情）：
 
