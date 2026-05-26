@@ -33,10 +33,50 @@ function signedDingTalkUrl(webhook: string, secret?: string): string {
   return `${webhook.trim()}${sep}timestamp=${timestamp}&sign=${sign}`;
 }
 
+/** 仅当配置了 DINGTALK_KEYWORD 时才注入（默认不要求关键词） */
+function getDingTalkKeyword(): string | undefined {
+  const kw = process.env.DINGTALK_KEYWORD?.trim();
+  return kw || undefined;
+}
+
+function applyDingTalkKeyword(text: string): string {
+  const kw = getDingTalkKeyword();
+  if (!kw) return text;
+  if (text.startsWith(kw) || text.startsWith(`${kw}\n`)) return text;
+  return `${kw}\n\n${text}`;
+}
+
+export function getDingTalkSecret(): string | undefined {
+  const s = process.env.DINGTALK_SECRET?.trim();
+  return s || undefined;
+}
+
 function withKeyword(text: string, keyword?: string): string {
   const kw = keyword?.trim();
   if (!kw || text.includes(kw)) return text;
   return `${kw}\n\n${text}`;
+}
+
+function isDingTalkKeywordError(msg: string): boolean {
+  return msg.includes('310000') || msg.includes('关键词');
+}
+
+function isDingTalkSignError(msg: string): boolean {
+  return /31000[12]|签名|sign/i.test(msg);
+}
+
+function formatDingTalkErrorHint(msg: string): string {
+  if (isDingTalkKeywordError(msg)) {
+    const kw = getDingTalkKeyword();
+    if (kw) {
+      return `${msg} → 请确认 DINGTALK_KEYWORD 与机器人「自定义关键词」一致（当前: 「${kw}」）`;
+    }
+    return `${msg} → 机器人已启用「自定义关键词」：在 Secrets 添加 DINGTALK_KEYWORD，或到群设置关闭关键词校验`;
+  }
+  if (isDingTalkSignError(msg)) {
+    return `${msg} → 机器人已启用加签：在 Secrets 配置 DINGTALK_SECRET；未启用加签则勿配置该 Secret`;
+  }
+  return msg;
 }
 
 function parseApiResponse(text: string): Record<string, unknown> {
@@ -85,9 +125,8 @@ async function sendDingTalkMarkdownMessage(
   markdownBody: string,
 ): Promise<void> {
   const url = signedDingTalkUrl(webhook, secret);
-  const keyword = process.env.DINGTALK_KEYWORD?.trim();
-  const mdTitle = withKeyword(title, keyword).slice(0, 100);
-  const mdText = truncate(withKeyword(markdownBody, keyword), 19000);
+  const mdTitle = applyDingTalkKeyword(title).slice(0, 100);
+  const mdText = truncate(applyDingTalkKeyword(markdownBody), 19000);
 
   await postJson(
     url,
@@ -106,9 +145,39 @@ async function sendDingTalkText(
   body: string,
 ): Promise<void> {
   const url = signedDingTalkUrl(webhook, secret);
-  const keyword = process.env.DINGTALK_KEYWORD?.trim();
-  const content = truncate(withKeyword(`${title}\n\n${body}`, keyword), 19000);
+  const content = truncate(applyDingTalkKeyword(`${title}\n\n${body}`), 19000);
   await postJson(url, { msgtype: 'text', text: { content } }, 'DingTalk-text');
+}
+
+/** 优先 text（兼容性最好），可选 DINGTALK_PREFER_TEXT=false 时先 markdown */
+async function sendDingTalkChunk(
+  webhook: string,
+  secret: string | undefined,
+  partTitle: string,
+  chunk: string,
+): Promise<void> {
+  const preferText = process.env.DINGTALK_PREFER_TEXT !== 'false';
+
+  if (preferText) {
+    try {
+      await sendDingTalkText(webhook, secret, partTitle, chunk);
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[notify] 钉钉 text 失败，尝试 markdown:', msg);
+    }
+  }
+
+  try {
+    await sendDingTalkMarkdownMessage(webhook, secret, partTitle, chunk);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (preferText || isDingTalkKeywordError(msg)) {
+      await sendDingTalkText(webhook, secret, partTitle, chunk);
+      return;
+    }
+    throw err;
+  }
 }
 
 /** 钉钉：完整 MD 正文 + 可选 HTML 按钮（正文优先 markdown 类型） */
@@ -117,35 +186,24 @@ export async function sendDingTalkHtml(
   secret: string | undefined,
   payload: PushPayload,
 ): Promise<void> {
-  const keyword = process.env.DINGTALK_KEYWORD?.trim();
   const body = payload.imMarkdown;
   const chunks = splitImMarkdown(body, 12000);
 
   for (let i = 0; i < chunks.length; i++) {
     const partTitle = chunks.length > 1 ? `${payload.title} (${i + 1}/${chunks.length})` : payload.title;
-    const chunk = chunks[i];
-    try {
-      await sendDingTalkMarkdownMessage(webhook, secret, partTitle, chunk);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('310000') || msg.includes('关键词')) {
-        await sendDingTalkText(webhook, secret, partTitle, chunk);
-      } else {
-        throw err;
-      }
-    }
+    await sendDingTalkChunk(webhook, secret, partTitle, chunks[i]);
   }
 
   if (payload.htmlUrl && process.env.DINGTALK_HTML_BUTTON !== 'false') {
     const url = signedDingTalkUrl(webhook, secret);
-    const cardText = withKeyword('在浏览器中打开可查看完整 HTML 排版。', keyword);
+    const cardText = applyDingTalkKeyword('在浏览器中打开可查看完整 HTML 排版。');
     try {
       await postJson(
         url,
         {
           msgtype: 'actionCard',
           actionCard: {
-            title: withKeyword('HTML 排版版', keyword),
+            title: applyDingTalkKeyword('HTML 排版版').slice(0, 100),
             text: cardText,
             singleTitle: '打开 HTML 日报',
             singleURL: payload.htmlUrl,
@@ -153,10 +211,15 @@ export async function sendDingTalkHtml(
         },
         'DingTalk-actionCard',
       );
-    } catch {
-      /* 正文已含链接，按钮失败可忽略 */
+    } catch (e) {
+      console.warn(
+        '[notify] 钉钉 HTML 按钮卡片失败（正文已含链接）:',
+        e instanceof Error ? e.message : e,
+      );
     }
   }
+
+  console.log(`[notify] 钉钉共 ${chunks.length} 条消息`);
 }
 
 /** 飞书：lark_md 渲染完整日报 + HTML 按钮 */
@@ -244,12 +307,18 @@ export async function sendDingTalkMarkdown(
   const chunks = splitImMarkdown(markdown, 12000);
   for (let i = 0; i < chunks.length; i++) {
     const partTitle = chunks.length > 1 ? `${title} (${i + 1}/${chunks.length})` : title;
-    try {
-      await sendDingTalkMarkdownMessage(webhook, secret, partTitle, chunks[i]);
-    } catch (err) {
-      await sendDingTalkText(webhook, secret, partTitle, chunks[i]);
-    }
+    await sendDingTalkChunk(webhook, secret, partTitle, chunks[i]);
   }
+}
+
+/** 仅发一条测试消息，用于验证 Webhook / 关键词 / 加签 */
+export async function sendDingTalkTest(webhook: string, secret?: string): Promise<void> {
+  await sendDingTalkText(
+    webhook,
+    secret,
+    'YXStock 推送测试',
+    `这是一条测试消息。时间: ${new Date().toISOString()}`,
+  );
 }
 
 /** 企业微信：Markdown 摘要 + 图文链 HTML */
@@ -308,12 +377,18 @@ export function resolveChannels(): NotifyChannel[] {
 
 export function logNotifyEnv(): void {
   const mask = (v: string | undefined) => (v?.trim() ? `已配置(${v.trim().slice(0, 28)}…)` : '未配置');
+  const channels = resolveChannels();
   console.log('[notify] NOTIFY_FORMAT =', getNotifyFormat());
   console.log('[notify] NOTIFY_CHANNELS =', process.env.NOTIFY_CHANNELS ?? '(自动推断)');
-  console.log('[notify] resolveChannels =', resolveChannels().join(', ') || '(无)');
-  console.log('[notify] REPORT_HTML_URL =', mask(process.env.REPORT_HTML_URL));
+  console.log('[notify] resolveChannels =', channels.join(', ') || '(无)');
   console.log('[notify] DINGTALK_WEBHOOK =', mask(process.env.DINGTALK_WEBHOOK));
+  console.log('[notify] DINGTALK_SECRET =', getDingTalkSecret() ? '已配置' : '未配置（默认不加签）');
+  console.log('[notify] DINGTALK_KEYWORD =', getDingTalkKeyword() ?? '未配置（默认不注入关键词）');
+  if (process.env.DINGTALK_WEBHOOK?.trim() && !channels.includes('dingtalk')) {
+    console.warn('[notify] 已配置 DINGTALK_WEBHOOK 但 NOTIFY_CHANNELS 未含 dingtalk，将跳过钉钉');
+  }
   console.log('[notify] FEISHU_WEBHOOK =', mask(process.env.FEISHU_WEBHOOK));
+  console.log('[notify] REPORT_HTML_URL =', mask(process.env.REPORT_HTML_URL));
 }
 
 export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResult> {
@@ -338,9 +413,9 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
           continue;
         }
         if (format === 'html' && payload.htmlUrl) {
-          await sendDingTalkHtml(webhook, process.env.DINGTALK_SECRET, payload);
+          await sendDingTalkHtml(webhook, getDingTalkSecret(), payload);
         } else {
-          await sendDingTalkMarkdown(webhook, process.env.DINGTALK_SECRET, payload.title, payload.imMarkdown);
+          await sendDingTalkMarkdown(webhook, getDingTalkSecret(), payload.title, payload.imMarkdown);
         }
         result.sent.push('dingtalk');
         console.log('[notify] 钉钉推送成功');
@@ -364,7 +439,8 @@ export async function sendNotifications(opts: NotifyOptions): Promise<NotifyResu
         console.log('[notify] 企业微信推送成功');
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const raw = err instanceof Error ? err.message : String(err);
+      const msg = ch === 'dingtalk' ? formatDingTalkErrorHint(raw) : raw;
       result.errors.push({ channel: ch, error: msg });
       console.error(`[notify] ${ch} 推送失败:`, msg);
     }

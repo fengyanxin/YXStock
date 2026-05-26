@@ -147,8 +147,8 @@ npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片
 | `DINGTALK_WEBHOOK` | **必填其一**：钉钉机器人完整 URL |
 | `FEISHU_WEBHOOK` | **必填其一**：飞书机器人完整 URL（`open.feishu.cn/.../hook/...`） |
 | `NOTIFY_CHANNELS` | 可选；**留空则自动**按已配置的 Webhook 推送 |
-| `DINGTALK_SECRET` | 钉钉加签 Secret（若启用） |
-| `DINGTALK_KEYWORD` | 钉钉机器人「自定义关键词」（若启用） |
+| `DINGTALK_SECRET` | **可选**：仅当机器人在钉钉里启用了「加签」时填写 |
+| `DINGTALK_KEYWORD` | **可选**：仅当机器人启用了「自定义关键词」时填写 |
 | `FEISHU_KEYWORD` | 飞书机器人关键词（若启用） |
 | `WECHAT_WORK_WEBHOOK` | 企业微信群机器人 Webhook |
 | `REPORT_HTML_BASE_URL` | 可选：已部署的 HTML 目录，如 `https://xxx.netlify.app/reports` |
@@ -156,7 +156,9 @@ npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片
 
 推送失败时工作流会 **直接报错**（不再静默成功）。请在 Actions 日志中查看 `[notify]` 行。
 
-**钉钉 errcode=310000 关键词不匹配：** 打开群机器人设置查看「自定义关键词」，在 Secrets 添加 `DINGTALK_KEYWORD`（例如关键词是 `YXStock` 就填 `YXStock`）。未配置时会自动尝试在正文加入「日报」。
+**钉钉默认只需 `DINGTALK_WEBHOOK`。** 创建机器人时安全设置选「自定义」且**不勾选**加签、关键词，即可零额外 Secret。若已开启加签/关键词，再对应配置 `DINGTALK_SECRET` / `DINGTALK_KEYWORD`。
+
+**钉钉 errcode=310000：** 说明机器人仍要求关键词，要么在 Secrets 填 `DINGTALK_KEYWORD`（与群里设置完全一致），要么到群机器人设置里关闭关键词校验。
 
 **飞书 Webhook：** 请使用群机器人里的 `https://open.feishu.cn/open-apis/bot/v2/hook/...` 地址（不要用 Flow 链接，除非已验证可用）。
 
@@ -164,6 +166,7 @@ npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片
 
 ```bash
 npm run report:notify-test -- --out-dir reports
+npm run report:dingtalk-test   # 仅发一条钉钉测试消息
 ```
 
 复制 `.env.example` 中日报相关变量可在本地 `report:daily:push` 时复用同一套配置。

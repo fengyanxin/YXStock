@@ -7,7 +7,7 @@ import { buildNarrative } from './analysis.js';
 import { renderMarkdown, renderPushMarkdown } from './render-markdown.js';
 import { renderHtml } from './render-html.js';
 import { buildPushPayload } from './push-payload.js';
-import { logNotifyEnv, sendNotifications } from './notify.js';
+import { getDingTalkSecret, logNotifyEnv, sendDingTalkTest, sendNotifications } from './notify.js';
 import type { GeneratedReport } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,6 +18,7 @@ function parseArgs() {
   return {
     notify: args.includes('--notify'),
     notifyOnly: args.includes('--notify-only'),
+    testDingtalk: args.includes('--test-dingtalk'),
     dryRun: args.includes('--dry-run'),
     outDir: getArgValue(args, '--out-dir') ?? path.join(REPO_ROOT, 'reports'),
   };
@@ -53,8 +54,20 @@ export async function generateDailyReport(now = new Date()): Promise<GeneratedRe
 }
 
 async function main() {
-  const { notify, notifyOnly, dryRun, outDir } = parseArgs();
+  const { notify, notifyOnly, testDingtalk, dryRun, outDir } = parseArgs();
   const now = new Date();
+
+  if (testDingtalk) {
+    const webhook = process.env.DINGTALK_WEBHOOK?.trim();
+    if (!webhook) {
+      console.error('[daily-report] --test-dingtalk 需要配置 DINGTALK_WEBHOOK');
+      process.exit(1);
+    }
+    logNotifyEnv();
+    await sendDingTalkTest(webhook, getDingTalkSecret());
+    console.log('[daily-report] 钉钉测试消息已发送');
+    return;
+  }
 
   if (process.env.SKIP_WEEKEND === 'true' && isWeekend(now)) {
     console.log('周末跳过日报生成');
