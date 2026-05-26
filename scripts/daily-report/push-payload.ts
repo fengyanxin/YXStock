@@ -20,8 +20,8 @@ export function buildPushPayload(
   fullMarkdown: string,
 ): PushPayload {
   const title = data.weekdayLabel
-    ? `日报 | YXStock A股行情 ${data.tradeDate}（${data.weekdayLabel}）`
-    : `日报 | YXStock A股行情 ${data.tradeDate}`;
+    ? `热点 · 日报 | YXStock A股行情 ${data.tradeDate}（${data.weekdayLabel}）`
+    : `热点 · 日报 | YXStock A股行情 ${data.tradeDate}`;
 
   const htmlUrl = resolveHtmlReportUrl(htmlFileName);
   const imMarkdown = prepareImMarkdown(fullMarkdown, htmlUrl);

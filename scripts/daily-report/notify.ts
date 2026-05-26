@@ -33,16 +33,15 @@ function signedDingTalkUrl(webhook: string, secret?: string): string {
   return `${webhook.trim()}${sep}timestamp=${timestamp}&sign=${sign}`;
 }
 
-/** 仅当配置了 DINGTALK_KEYWORD 时才注入（默认不要求关键词） */
-function getDingTalkKeyword(): string | undefined {
-  const kw = process.env.DINGTALK_KEYWORD?.trim();
-  return kw || undefined;
+/** 钉钉机器人自定义关键词（未配置 Secret 时默认「热点」，与本项目钉钉机器人一致） */
+export function getDingTalkKeyword(): string {
+  return process.env.DINGTALK_KEYWORD?.trim() || '热点';
 }
 
+/** 确保关键词出现在正文前部（钉钉只校验 text/markdown.text，标题单独字段也需包含） */
 function applyDingTalkKeyword(text: string): string {
   const kw = getDingTalkKeyword();
-  if (!kw) return text;
-  if (text.startsWith(kw) || text.startsWith(`${kw}\n`)) return text;
+  if (text.slice(0, 150).includes(kw)) return text;
   return `${kw}\n\n${text}`;
 }
 
@@ -313,11 +312,12 @@ export async function sendDingTalkMarkdown(
 
 /** 仅发一条测试消息，用于验证 Webhook / 关键词 / 加签 */
 export async function sendDingTalkTest(webhook: string, secret?: string): Promise<void> {
+  const kw = getDingTalkKeyword();
   await sendDingTalkText(
     webhook,
     secret,
-    'YXStock 推送测试',
-    `这是一条测试消息。时间: ${new Date().toISOString()}`,
+    `${kw} · YXStock 推送测试`,
+    `这是一条测试消息（关键词: ${kw}）。时间: ${new Date().toISOString()}`,
   );
 }
 
@@ -383,7 +383,12 @@ export function logNotifyEnv(): void {
   console.log('[notify] resolveChannels =', channels.join(', ') || '(无)');
   console.log('[notify] DINGTALK_WEBHOOK =', mask(process.env.DINGTALK_WEBHOOK));
   console.log('[notify] DINGTALK_SECRET =', getDingTalkSecret() ? '已配置' : '未配置（默认不加签）');
-  console.log('[notify] DINGTALK_KEYWORD =', getDingTalkKeyword() ?? '未配置（默认不注入关键词）');
+  const kw = getDingTalkKeyword();
+  console.log(
+    '[notify] DINGTALK_KEYWORD =',
+    kw,
+    process.env.DINGTALK_KEYWORD?.trim() ? '(来自 Secret)' : '(默认「热点」)',
+  );
   if (process.env.DINGTALK_WEBHOOK?.trim() && !channels.includes('dingtalk')) {
     console.warn('[notify] 已配置 DINGTALK_WEBHOOK 但 NOTIFY_CHANNELS 未含 dingtalk，将跳过钉钉');
   }

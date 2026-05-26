@@ -156,9 +156,9 @@ npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片
 
 推送失败时工作流会 **直接报错**（不再静默成功）。请在 Actions 日志中查看 `[notify]` 行。
 
-**钉钉默认只需 `DINGTALK_WEBHOOK`。** 创建机器人时安全设置选「自定义」且**不勾选**加签、关键词，即可零额外 Secret。若已开启加签/关键词，再对应配置 `DINGTALK_SECRET` / `DINGTALK_KEYWORD`。
+**钉钉默认只需 `DINGTALK_WEBHOOK`。** 推送标题与正文会自动带上关键词 **「热点」**（与本项目钉钉机器人一致，无需再配 `DINGTALK_KEYWORD`）。若你的机器人关键词不是「热点」，在 Secrets 设置 `DINGTALK_KEYWORD` 覆盖即可。
 
-**钉钉 errcode=310000：** 说明机器人仍要求关键词，要么在 Secrets 填 `DINGTALK_KEYWORD`（与群里设置完全一致），要么到群机器人设置里关闭关键词校验。
+**钉钉 errcode=310000：** 将 `DINGTALK_KEYWORD` 设为群里机器人配置的**完整关键词**（区分大小写）。
 
 **飞书 Webhook：** 请使用群机器人里的 `https://open.feishu.cn/open-apis/bot/v2/hook/...` 地址（不要用 Flow 链接，除非已验证可用）。
 
