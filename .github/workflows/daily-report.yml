@@ -45,11 +45,22 @@ jobs:
       - name: Commit reports for HTML preview link
         if: github.event_name == 'schedule' || inputs.notify == true
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reports/
-          git diff --staged --quiet || git commit -m "chore: daily market report $(date +%Y-%m-%d)"
-          git push
+          shopt -s nullglob
+          files=(reports/YXStock_行情日报_*.html reports/YXStock_行情日报_*.md)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "未找到 reports 下的日报文件，跳过 commit"
+            exit 1
+          fi
+          git add -f "${files[@]}"
+          if git diff --staged --quiet; then
+            echo "日报无变更，跳过 commit"
+          else
+            git commit -m "chore(reports): daily market report $(date +%Y-%m-%d)"
+            git push
+          fi
 
       - name: Push HTML report link to IM
         if: github.event_name == 'schedule' || inputs.notify == true

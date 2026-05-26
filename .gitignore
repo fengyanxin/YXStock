@@ -8,6 +8,6 @@ dist
 apps/web/node_modules/.tmp
 .vite
 coverage
-reports/
+# 桌面根目录下的日报副本（不提交）；CI 生成的在 reports/ 目录会提交
 YXStock_行情日报_*.md
 YXStock_行情日报_*.html
