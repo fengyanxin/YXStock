@@ -120,16 +120,33 @@ async function postJson(url: string, body: unknown, label: string): Promise<void
   assertApiOk(data, label);
 }
 
-/** 钉钉 Markdown 消息（完整日报正文） */
+/** 钉钉 Markdown 消息（完整日报正文）；可选 actionCard 以改善表格展示 */
 async function sendDingTalkMarkdownMessage(
   webhook: string,
   secret: string | undefined,
   title: string,
   markdownBody: string,
+  htmlUrl?: string,
 ): Promise<void> {
   const url = signedDingTalkUrl(webhook, secret);
   const mdTitle = applyDingTalkKeyword(title).slice(0, 100);
   const mdText = truncate(applyDingTalkKeyword(markdownBody), 19000);
+
+  const useActionCard =
+    process.env.DINGTALK_USE_ACTION_CARD === 'true' && mdText.length <= 18000;
+
+  if (useActionCard) {
+    const card: Record<string, unknown> = {
+      title: mdTitle,
+      text: mdText,
+    };
+    if (htmlUrl) {
+      card.singleTitle = '查看完整 HTML 日报';
+      card.singleURL = htmlUrl;
+    }
+    await postJson(url, { msgtype: 'actionCard', actionCard: card }, 'DingTalk-actionCard');
+    return;
+  }
 
   await postJson(
     url,
@@ -158,6 +175,7 @@ async function sendDingTalkChunk(
   secret: string | undefined,
   partTitle: string,
   chunk: string,
+  htmlUrl?: string,
 ): Promise<void> {
   const preferText = process.env.DINGTALK_PREFER_TEXT === 'true';
 
@@ -167,7 +185,7 @@ async function sendDingTalkChunk(
   }
 
   try {
-    await sendDingTalkMarkdownMessage(webhook, secret, partTitle, chunk);
+    await sendDingTalkMarkdownMessage(webhook, secret, partTitle, chunk, htmlUrl);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('[notify] 钉钉 markdown 失败，降级纯文本:', msg);
@@ -186,7 +204,8 @@ export async function sendDingTalkHtml(
 
   for (let i = 0; i < chunks.length; i++) {
     const partTitle = chunks.length > 1 ? `${payload.title} (${i + 1}/${chunks.length})` : payload.title;
-    await sendDingTalkChunk(webhook, secret, partTitle, chunks[i]);
+    const htmlLink = i === chunks.length - 1 ? payload.htmlUrl : undefined;
+    await sendDingTalkChunk(webhook, secret, partTitle, chunks[i], htmlLink);
   }
 
   // 正文末尾已含 HTML 链接；默认不再发第二条 actionCard（设 DINGTALK_HTML_BUTTON=true 可恢复）
