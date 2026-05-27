@@ -189,7 +189,8 @@ export async function sendDingTalkHtml(
     await sendDingTalkChunk(webhook, secret, partTitle, chunks[i]);
   }
 
-  if (payload.htmlUrl && process.env.DINGTALK_HTML_BUTTON !== 'false') {
+  // 正文末尾已含 HTML 链接；默认不再发第二条 actionCard（设 DINGTALK_HTML_BUTTON=true 可恢复）
+  if (payload.htmlUrl && process.env.DINGTALK_HTML_BUTTON === 'true') {
     const url = signedDingTalkUrl(webhook, secret);
     const cardText = applyDingTalkKeyword('在浏览器中打开可查看完整 HTML 排版。');
     try {
@@ -208,13 +209,13 @@ export async function sendDingTalkHtml(
       );
     } catch (e) {
       console.warn(
-        '[notify] 钉钉 HTML 按钮卡片失败（正文已含链接）:',
+        '[notify] 钉钉 HTML 按钮卡片失败:',
         e instanceof Error ? e.message : e,
       );
     }
   }
 
-  console.log(`[notify] 钉钉共 ${chunks.length} 条消息`);
+  console.log(`[notify] 钉钉已推送 ${chunks.length} 条`);
 }
 
 /** 飞书：lark_md 渲染完整日报 + HTML 按钮 */

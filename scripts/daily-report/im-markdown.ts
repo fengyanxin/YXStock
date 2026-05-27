@@ -2,6 +2,10 @@ import { truncate } from './format.js';
 
 type TableRowFormatter = (headers: string[], rows: string[][]) => string;
 
+/** A 股：涨红跌绿（钉钉 font 需双引号色值） */
+const COLOR_UP = '#f85149';
+const COLOR_DOWN = '#3fb950';
+
 /** 飞书等：表格转列表 + 标题改加粗（lark_md 友好） */
 export function prepareImMarkdown(fullMarkdown: string, htmlUrl?: string): string {
   let md = normalizeSource(fullMarkdown);
@@ -17,14 +21,15 @@ export function prepareImMarkdown(fullMarkdown: string, htmlUrl?: string): strin
 }
 
 /**
- * 钉钉机器人 markdown 子集：保留 # 标题、**加粗**、- 列表、> 引用、[链接](url)
- * 勿用 GitHub 扩展语法（|--- 表格、--- 分隔线等）
+ * 钉钉 markdown：HTML 表格 + font 着色（涨红跌绿）
+ * @see https://open.dingtalk.com/document/development/custom-robots-send-group-messages
  */
 export function prepareDingTalkMarkdown(fullMarkdown: string, htmlUrl?: string): string {
   let md = normalizeSource(fullMarkdown);
   md = md.replace(/^# (.+)$/m, '## $1');
-  md = convertPipeTables(md, formatTableAsDingTalkList);
+  md = convertPipeTables(md, formatTableAsDingTalkHtml);
   md = simplifyForDingTalk(md);
+  md = colorizeDingTalkBody(md);
   md = collapseBlankLines(md);
 
   if (htmlUrl) {
@@ -49,7 +54,6 @@ function capLength(md: string): string {
   return `${cut}\n\n…（正文过长已截断，请点击 HTML 链接查看完整版）`;
 }
 
-/** ATX 标题 → 加粗行（飞书 lark_md） */
 function headingsToBold(md: string): string {
   return md.replace(/^(#{1,6})\s+(.+)$/gm, (_m, hashes: string, raw: string) => {
     const level = hashes.length;
@@ -61,7 +65,6 @@ function headingsToBold(md: string): string {
   });
 }
 
-/** 去掉钉钉不支持的语法，避免回退成“源码感” */
 function simplifyForDingTalk(md: string): string {
   return md
     .replace(/^---\s*$/gm, '\n')
@@ -119,26 +122,113 @@ function formatTableAsBulletList(headers: string[], rows: string[][]): string {
   return parts.join('\n');
 }
 
-function formatTableAsDingTalkList(headers: string[], rows: string[][]): string {
-  const parts: string[] = [''];
-  for (const row of rows) {
-    const cells = row.map((cell, idx) => {
-      const h = headers[idx] ?? '';
-      const plain = cell.replace(/\*\*/g, '');
-      return h ? `**${h}** ${plain}` : plain;
-    });
-    parts.push(`- ${cells.join('，')}`);
+/** 钉钉：HTML table（PC/部分移动端可渲染，优于 pipe 表格源码） */
+function formatTableAsDingTalkHtml(headers: string[], rows: string[][]): string {
+  const lines: string[] = ['', '<table>', '<tr>'];
+  for (const h of headers) {
+    lines.push(`<td><b>${escapeHtml(stripBold(h))}</b></td>`);
   }
-  parts.push('');
-  return parts.join('\n');
+  lines.push('</tr>');
+
+  for (const row of rows) {
+    lines.push('<tr>');
+    row.forEach((cell, idx) => {
+      const header = headers[idx] ?? '';
+      lines.push(`<td>${formatDingTalkTableCell(cell, header)}</td>`);
+    });
+    lines.push('</tr>');
+  }
+
+  lines.push('</table>', '');
+  return lines.join('\n');
 }
 
-/** 飞书等：按加粗章节拆分 */
+function formatDingTalkTableCell(cell: string, header: string): string {
+  const plain = stripBold(cell);
+  const colored = colorizeByHeaderOrValue(plain, header);
+  return colored;
+}
+
+function stripBold(s: string): string {
+  return s.replace(/\*\*/g, '').trim();
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function isChangeColumn(header: string): boolean {
+  return /涨跌|涨幅|跌幅|涨跌幅|变化/.test(header);
+}
+
+function colorizeByHeaderOrValue(text: string, header = ''): string {
+  if (!text || text.includes('<font')) return escapeHtml(text);
+
+  const changeCol = isChangeColumn(header);
+  const trimmed = text.trim();
+
+  if (changeCol || /^[+-]\d/.test(trimmed)) {
+    if (/^\+/.test(trimmed)) return fontColor(trimmed, COLOR_UP);
+    if (/^-/.test(trimmed)) return fontColor(trimmed, COLOR_DOWN);
+  }
+
+  return colorizeSignedNumbersInText(text);
+}
+
+function colorizeSignedNumbersInText(text: string): string {
+  let out = text;
+  out = out.replace(/(\+[\d.,]+%)/g, (_, n) => fontColor(n, COLOR_UP));
+  out = out.replace(/(-[\d.,]+%)/g, (_, n) => fontColor(n, COLOR_DOWN));
+  out = out.replace(/\*\*(\+[\d.,]+)\*\*/g, (_, n) => `**${fontColor(n, COLOR_UP)}**`);
+  out = out.replace(/\*\*(-[\d.,]+)\*\*/g, (_, n) => `**${fontColor(n, COLOR_DOWN)}**`);
+  return out;
+}
+
+function fontColor(text: string, color: string): string {
+  const inner = escapeHtml(stripBold(text));
+  return `<font color="${color}">${inner}</font>`;
+}
+
+/** 段落、列表行着色（跳过 HTML 表格块） */
+function colorizeDingTalkBody(md: string): string {
+  const lines = md.split('\n');
+  const out: string[] = [];
+  let inTable = false;
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (t === '<table>') inTable = true;
+    if (inTable) {
+      out.push(line);
+      if (t === '</table>') inTable = false;
+      continue;
+    }
+    if (t.startsWith('##') || t.startsWith('###') || t.startsWith('[')) {
+      out.push(line);
+      continue;
+    }
+    if (t.startsWith('>')) {
+      out.push(colorizeSignedNumbersInText(line));
+      continue;
+    }
+    if (t.startsWith('- ')) {
+      out.push(colorizeSignedNumbersInText(line));
+      continue;
+    }
+    if (t.startsWith('**') || t.length > 0) {
+      out.push(colorizeSignedNumbersInText(line));
+      continue;
+    }
+    out.push(line);
+  }
+
+  return out.join('\n');
+}
+
 export function splitImMarkdown(md: string, maxChunk = 12000): string[] {
   return splitMarkdownChunks(md, /(?=\n\*\*[一二三四五六七]、[^*\n]+\*\*\n)/, maxChunk);
 }
 
-/** 钉钉：按 ## 章节拆分 */
 export function splitDingTalkMarkdown(md: string, maxChunk = 12000): string[] {
   return splitMarkdownChunks(md, /(?=\n## [一二三四五六七]、)/, maxChunk);
 }
@@ -163,9 +253,10 @@ function splitMarkdownChunks(md: string, sectionPattern: RegExp, maxChunk: numbe
   return chunks.length > 0 ? chunks : [truncate(md, maxChunk)];
 }
 
-/** text 降级：去掉 MD 标记，避免满屏符号 */
 export function plainTextFromDingTalkMarkdown(md: string): string {
   return md
+    .replace(/<font color="[^"]*">([^<]*)<\/font>/gi, '$1')
+    .replace(/<\/?(table|tr|td|b)[^>]*>/gi, ' ')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/^#{1,6}\s+/gm, '')
