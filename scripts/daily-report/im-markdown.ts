@@ -205,21 +205,19 @@ function formatTableAsDingTalkGrid(headers: string[], rows: string[][]): string 
   const sep = border('├', '┼', '┤', '─');
   const bottom = border('└', '┴', '┘', '─');
 
-  const line = (cells: string[], isHeader: boolean) => {
+  // 代码块包裹整张表：钉钉对代码块按整段渲染、不拆行、用等宽字体，框线才能连续
+  // 注意：代码块内 <font color> 不会渲染，因此单元格只用纯文本（+/- 仍然能看出涨跌）
+  const line = (cells: string[]) => {
     const parts = cells.map((cell, i) => {
       const w = widths[i];
-      if (isHeader) {
-        const p = stripBold(cell);
-        return ` ${p}${' '.repeat(Math.max(0, w - displayWidth(p)))} `;
-      }
-      const plain = stripBold(cell);
-      const colored = colorizeByHeaderOrValue(plain, headers[i] ?? '');
-      return ` ${colored}${' '.repeat(Math.max(0, w - displayWidth(plain)))} `;
+      const p = stripBold(cell);
+      return ` ${p}${' '.repeat(Math.max(0, w - displayWidth(p)))} `;
     });
     return `│${parts.join('│')}│`;
   };
 
-  return ['', top, line(headers, true), sep, ...rows.map((r) => line(r, false)), bottom, ''].join('\n');
+  const tableLines = [top, line(headers), sep, ...rows.map((r) => line(r)), bottom];
+  return ['', '```', ...tableLines, '```', ''].join('\n');
 }
 
 function displayWidth(s: string): number {
