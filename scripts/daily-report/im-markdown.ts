@@ -151,7 +151,7 @@ function formatTableAsDingTalkCard(headers: string[], rows: string[][]): string 
       if (!v || v === '-') continue;
       const h = stripBold(headers[i] ?? '');
       const colored = colorizeByHeaderOrValue(v, h);
-      parts.push(h ? `${h} ${colored}` : colored);
+      parts.push(h ? `${dingTalkBold(h)} ${colored}` : colored);
     }
 
     out.push(`- ${parts.join('　·　')}`);
@@ -194,63 +194,29 @@ function simplifyForDingTalk(md: string): string {
     .replace(/\n{3,}/g, '\n\n');
 }
 
-/** 钉钉对 ** 支持差（列表/中文标点旁常原样显示 *），统一改为 <b> + 清理残留星号 */
+/** 钉钉 markdown 只认 **加粗**（不认 <b>）；清理反引号并修复 *ST 等破坏语法的星号 */
 function finalizeDingTalkFormatting(md: string): string {
-  let out = md.replace(/`([^`\n]+?)`/g, '$1');
-  out = convertBoldMarkersToHtml(out);
-  out = out.replace(/\*([^*\n<>\/]+?)\*/g, '$1');
-  out = out.replace(/\*{1,2}(?=\s|$)/g, '');
-  out = out.replace(/(?<=\s)\*{1,2}/g, '');
+  let out = md.replace(/<b>([^<]*)<\/b>/gi, '**$1**');
+  out = out.replace(/<\/?b>/gi, '');
+  out = out.replace(/`([^`\n]+?)`/g, '$1');
+  out = out.replace(/\*{3}([^*\n]+?)\*\*/g, '* **$1**');
   return out;
 }
 
+/** 钉钉 ** 加粗；名称以 * 开头时星号放在加粗外（避免 *** 破坏解析） */
 function dingTalkBold(text: string): string {
-  const inner = stripBold(text);
+  const inner = stripBold(text).replace(/\*\*/g, '');
   if (!inner) return '';
-  return `<b>${escapeHtml(inner)}</b>`;
+  if (inner.startsWith('*')) {
+    return `*${wrapDingTalkBold(inner.slice(1))}`;
+  }
+  return wrapDingTalkBold(inner);
 }
 
-/** 将 **…** 转为 <b>…</b>，跳过 HTML 标签内部 */
-function convertBoldMarkersToHtml(md: string): string {
-  const parts: string[] = [];
-  let i = 0;
-  while (i < md.length) {
-    if (md.startsWith('<font', i)) {
-      const end = md.indexOf('</font>', i);
-      if (end === -1) {
-        parts.push(md.slice(i));
-        break;
-      }
-      parts.push(md.slice(i, end + 7));
-      i = end + 7;
-      continue;
-    }
-    if (md.startsWith('<b>', i)) {
-      const end = md.indexOf('</b>', i);
-      if (end === -1) {
-        parts.push(md.slice(i));
-        break;
-      }
-      parts.push(md.slice(i, end + 4));
-      i = end + 4;
-      continue;
-    }
-    const next = md.indexOf('**', i);
-    if (next === -1) {
-      parts.push(md.slice(i));
-      break;
-    }
-    parts.push(md.slice(i, next));
-    const close = md.indexOf('**', next + 2);
-    if (close === -1) {
-      parts.push(md.slice(next));
-      break;
-    }
-    const inner = md.slice(next + 2, close);
-    parts.push(dingTalkBold(inner));
-    i = close + 2;
-  }
-  return parts.join('');
+function wrapDingTalkBold(text: string): string {
+  const t = text.trim();
+  if (!t) return '';
+  return `**${t}**`;
 }
 
 function convertPipeTables(md: string, formatTable: TableRowFormatter): string {
