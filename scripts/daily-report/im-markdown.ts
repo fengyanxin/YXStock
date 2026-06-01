@@ -38,6 +38,7 @@ export function prepareDingTalkMarkdown(fullMarkdown: string, htmlUrl?: string):
   md = simplifyForDingTalk(md);
   md = colorizeDingTalkBody(md);
   md = collapseBlankLines(md);
+  md = finalizeDingTalkFormatting(md);
 
   if (htmlUrl) {
     md += `\n\n### 完整 HTML 版\n\n[点击查看浏览器排版](${htmlUrl})`;
@@ -134,8 +135,8 @@ function formatTableAsDingTalkCard(headers: string[], rows: string[][]): string 
 
     const head: string[] = [];
     if (arrow) head.push(arrow);
-    if (rank) head.push(`\`${rank}\``);
-    head.push(`**${name}**`);
+    if (rank) head.push(rank);
+    head.push(dingTalkBold(name));
 
     const parts: string[] = [head.join(' ')];
     if (price) parts.push(price);
@@ -191,6 +192,65 @@ function simplifyForDingTalk(md: string): string {
     .replace(/^---\s*$/gm, '\n')
     .replace(/^\*([^*\n]+)\*$/gm, '$1')
     .replace(/\n{3,}/g, '\n\n');
+}
+
+/** 钉钉对 ** 支持差（列表/中文标点旁常原样显示 *），统一改为 <b> + 清理残留星号 */
+function finalizeDingTalkFormatting(md: string): string {
+  let out = md.replace(/`([^`\n]+?)`/g, '$1');
+  out = convertBoldMarkersToHtml(out);
+  out = out.replace(/\*([^*\n<>\/]+?)\*/g, '$1');
+  out = out.replace(/\*{1,2}(?=\s|$)/g, '');
+  out = out.replace(/(?<=\s)\*{1,2}/g, '');
+  return out;
+}
+
+function dingTalkBold(text: string): string {
+  const inner = stripBold(text);
+  if (!inner) return '';
+  return `<b>${escapeHtml(inner)}</b>`;
+}
+
+/** 将 **…** 转为 <b>…</b>，跳过 HTML 标签内部 */
+function convertBoldMarkersToHtml(md: string): string {
+  const parts: string[] = [];
+  let i = 0;
+  while (i < md.length) {
+    if (md.startsWith('<font', i)) {
+      const end = md.indexOf('</font>', i);
+      if (end === -1) {
+        parts.push(md.slice(i));
+        break;
+      }
+      parts.push(md.slice(i, end + 7));
+      i = end + 7;
+      continue;
+    }
+    if (md.startsWith('<b>', i)) {
+      const end = md.indexOf('</b>', i);
+      if (end === -1) {
+        parts.push(md.slice(i));
+        break;
+      }
+      parts.push(md.slice(i, end + 4));
+      i = end + 4;
+      continue;
+    }
+    const next = md.indexOf('**', i);
+    if (next === -1) {
+      parts.push(md.slice(i));
+      break;
+    }
+    parts.push(md.slice(i, next));
+    const close = md.indexOf('**', next + 2);
+    if (close === -1) {
+      parts.push(md.slice(next));
+      break;
+    }
+    const inner = md.slice(next + 2, close);
+    parts.push(dingTalkBold(inner));
+    i = close + 2;
+  }
+  return parts.join('');
 }
 
 function convertPipeTables(md: string, formatTable: TableRowFormatter): string {
@@ -341,12 +401,12 @@ function stripTags(s: string): string {
 
 /** 移动端兜底：每行一条，带列名（超宽表自动降级） */
 function formatTableAsDingTalkRows(headers: string[], rows: string[][]): string {
-  const parts: string[] = ['', `**${headers.map(stripBold).join('　|　')}**`, ''];
+  const parts: string[] = ['', dingTalkBold(headers.map(stripBold).join('　|　')), ''];
   for (const row of rows) {
     const cells = row.map((cell, idx) => {
       const h = stripBold(headers[idx] ?? '');
       const v = colorizeByHeaderOrValue(stripBold(cell), headers[idx] ?? '');
-      return `**${h}** ${v}`;
+      return `${dingTalkBold(h)} ${v}`;
     });
     parts.push(cells.join('　'));
     parts.push('');
@@ -412,8 +472,8 @@ function colorizeSignedNumbersInText(text: string): string {
   let out = text;
   out = out.replace(/(\+[\d.,]+%)/g, (_, n) => fontColor(n, COLOR_UP));
   out = out.replace(/(-[\d.,]+%)/g, (_, n) => fontColor(n, COLOR_DOWN));
-  out = out.replace(/\*\*(\+[\d.,]+)\*\*/g, (_, n) => `**${fontColor(n, COLOR_UP)}**`);
-  out = out.replace(/\*\*(-[\d.,]+)\*\*/g, (_, n) => `**${fontColor(n, COLOR_DOWN)}**`);
+  out = out.replace(/\*\*(\+[\d.,]+)\*\*/g, (_, n) => fontColor(n, COLOR_UP));
+  out = out.replace(/\*\*(-[\d.,]+)\*\*/g, (_, n) => fontColor(n, COLOR_DOWN));
   return out;
 }
 
@@ -493,7 +553,8 @@ function splitMarkdownChunks(md: string, sectionPattern: RegExp, maxChunk: numbe
 export function plainTextFromDingTalkMarkdown(md: string): string {
   return md
     .replace(/<font color="[^"]*">([^<]*)<\/font>/gi, '$1')
-    .replace(/<\/?(table|tr|td|b)[^>]*>/gi, ' ')
+    .replace(/<\/?b>/gi, '')
+    .replace(/<\/?(table|tr|td)[^>]*>/gi, ' ')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/^#{1,6}\s+/gm, '')
