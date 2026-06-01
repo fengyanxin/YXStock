@@ -124,7 +124,7 @@ npm run report:daily              # 写入 reports/（.md + .html）
 npm run report:daily:push         # 生成并推送「打开完整 HTML」卡片（需 Webhook + 公网 HTML 地址）
 ```
 
-推送默认 **NOTIFY_FORMAT=html**：**钉钉**为单条 `markdown` 消息，表格默认 **代码块框线表** `DINGTALK_TABLE_FORMAT=grid`（用 ```` ``` ```` 包裹 `┌─┬─┐`，框线在手机/PC 都能连续显示；代价是单元格不能上色）。正文段落里的涨跌幅仍是涨红 `#f85149` / 跌绿 `#3fb950`。想在表格里看红绿可改用 `DINGTALK_TABLE_FORMAT=rows`（逐行展示，带颜色）。其它可选：`md`（管道表，钉钉常断行）、`html`（多数客户端不渲染）。
+推送默认 **NOTIFY_FORMAT=html**：**钉钉**为单条 `markdown` 消息，表格默认 **卡片列表** `DINGTALK_TABLE_FORMAT=card`：每行一条 ▲/▼ + 名称 + 价 + 涨跌幅（红涨绿跌），列表项之间钉钉紧密渲染，手机/PC 都美观且保留颜色。备选：`grid`（代码块框线，无色）、`md`（管道表）、`rows`（逐行）、`html`（多数客户端不渲染）。
 
 公网 HTML 地址任选其一：
 

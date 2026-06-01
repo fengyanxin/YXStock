@@ -20,12 +20,12 @@ export function prepareImMarkdown(fullMarkdown: string, htmlUrl?: string): strin
   return capLength(md);
 }
 
-type DingTalkTableFormat = 'grid' | 'md' | 'rows' | 'html';
+type DingTalkTableFormat = 'card' | 'grid' | 'md' | 'rows' | 'html';
 
 function getDingTalkTableFormat(): DingTalkTableFormat {
   const v = process.env.DINGTALK_TABLE_FORMAT?.trim().toLowerCase();
-  if (v === 'md' || v === 'html' || v === 'rows') return v;
-  return 'grid';
+  if (v === 'grid' || v === 'md' || v === 'html' || v === 'rows') return v;
+  return 'card';
 }
 
 /**
@@ -51,7 +51,113 @@ function formatDingTalkTables(md: string): string {
   if (mode === 'html') return convertPipeTables(md, formatTableAsDingTalkHtml);
   if (mode === 'rows') return convertPipeTables(md, formatTableAsDingTalkRows);
   if (mode === 'md') return colorizePipeTablesInPlace(md);
-  return convertPipeTables(md, formatTableAsDingTalkGrid);
+  if (mode === 'grid') return convertPipeTables(md, formatTableAsDingTalkGrid);
+  return convertPipeTables(md, formatTableAsDingTalkCard);
+}
+
+interface CardColumnIdx {
+  rank: number;
+  name: number;
+  price: number;
+  pct: number;
+  change: number;
+  others: number[];
+}
+
+function identifyCardColumns(headers: string[]): CardColumnIdx {
+  let rank = -1;
+  let name = -1;
+  let price = -1;
+  let pct = -1;
+  let change = -1;
+  const others: number[] = [];
+
+  headers.forEach((h, i) => {
+    const hp = stripBold(h);
+    if (rank === -1 && /^(#|序号|排名|No\.?)$/.test(hp)) {
+      rank = i;
+      return;
+    }
+    if (name === -1 && /^(指数|名称|股票|主线|代表标的|品种|通道|维度|指标|日期|主名)$/.test(hp)) {
+      name = i;
+      return;
+    }
+    if (pct === -1 && /涨跌幅|涨幅|跌幅|变化/.test(hp)) {
+      pct = i;
+      return;
+    }
+    if (change === -1 && /^涨跌$/.test(hp)) {
+      change = i;
+      return;
+    }
+    if (price === -1 && /收盘|现价|价格|数值|主力净流入|净买入/.test(hp)) {
+      price = i;
+      return;
+    }
+    others.push(i);
+  });
+
+  if (name === -1) {
+    // 没匹配到名称列：用第一个非 rank 列
+    name = headers.findIndex((_, i) => i !== rank);
+    if (name === -1) name = 0;
+    const oi = others.indexOf(name);
+    if (oi >= 0) others.splice(oi, 1);
+  }
+  return { rank, name, price, pct, change, others };
+}
+
+/** 卡片式列表：钉钉对 - 列表行紧密渲染，是表格替代的最佳排版 */
+function formatTableAsDingTalkCard(headers: string[], rows: string[][]): string {
+  if (headers.length === 0 || rows.length === 0) return '';
+
+  const idx = identifyCardColumns(headers);
+  const out: string[] = [''];
+
+  for (const row of rows) {
+    const rank = idx.rank >= 0 ? stripBold(row[idx.rank] ?? '') : '';
+    const name = stripBold(row[idx.name] ?? '');
+    const price = idx.price >= 0 ? stripBold(row[idx.price] ?? '') : '';
+    const pct = idx.pct >= 0 ? stripBold(row[idx.pct] ?? '') : '';
+    const change = idx.change >= 0 ? stripBold(row[idx.change] ?? '') : '';
+
+    const sign = pct || change;
+    let arrow = '';
+    let color = '';
+    if (/^\+/.test(sign)) {
+      arrow = '▲';
+      color = COLOR_UP;
+    } else if (/^-/.test(sign)) {
+      arrow = '▼';
+      color = COLOR_DOWN;
+    }
+
+    const head: string[] = [];
+    if (arrow) head.push(arrow);
+    if (rank) head.push(`\`${rank}\``);
+    head.push(`**${name}**`);
+
+    const parts: string[] = [head.join(' ')];
+    if (price) parts.push(price);
+
+    if (pct || change) {
+      const combined = [pct, change].filter(Boolean).join(' / ');
+      parts.push(color ? `<font color="${color}">${combined}</font>` : combined);
+    }
+
+    for (const i of idx.others) {
+      const v = stripBold(row[i] ?? '');
+      if (!v || v === '-') continue;
+      const h = stripBold(headers[i] ?? '');
+      const colored = colorizeByHeaderOrValue(v, h);
+      parts.push(h ? `${h} ${colored}` : colored);
+    }
+
+    out.push(`- ${parts.join('　·　')}`);
+  }
+
+  out.push('');
+  return out.join('\n');
 }
 
 function normalizeSource(fullMarkdown: string): string {
