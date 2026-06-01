@@ -194,12 +194,36 @@ function simplifyForDingTalk(md: string): string {
     .replace(/\n{3,}/g, '\n\n');
 }
 
-/** 钉钉 markdown 只认 **加粗**（不认 <b>）；清理反引号并修复 *ST 等破坏语法的星号 */
+/** 钉钉 markdown 只认 **加粗**（不认 <b>）；修复钉钉无法解析的加粗写法 */
 function finalizeDingTalkFormatting(md: string): string {
   let out = md.replace(/<b>([^<]*)<\/b>/gi, '**$1**');
   out = out.replace(/<\/?b>/gi, '');
   out = out.replace(/`([^`\n]+?)`/g, '$1');
   out = out.replace(/\*{3}([^*\n]+?)\*\*/g, '* **$1**');
+  out = fixDingTalkBoldColons(out);
+  return out;
+}
+
+/**
+ * 钉钉不能解析 **标签：** 正文（全角冒号在 ** 内会裸显 * 号）
+ * 改为 **标签**：正文；并修复 **标签： ** 中间误插空格
+ */
+function fixDingTalkBoldColons(md: string): string {
+  let out = md;
+  // 保护 <font> 块，避免误改
+  const fonts: string[] = [];
+  out = out.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, (m) => {
+    fonts.push(m);
+    return `\x00F${fonts.length - 1}\x00`;
+  });
+
+  // **label： ** / **label:** ** → 冒号移到 ** 外
+  out = out.replace(/\*\*([^*\n\x00]+?)：[ \t]*\*\*/g, '**$1**：');
+  out = out.replace(/\*\*([^*\n\x00]+?):[ \t]*\*\*/g, '**$1**: ');
+  // **label：**（无空格）
+  out = out.replace(/\*\*([^*\n\x00]+?)：\*\*/g, '**$1**：');
+
+  out = out.replace(/\x00F(\d+)\x00/g, (_, i) => fonts[Number(i)] ?? '');
   return out;
 }
 
