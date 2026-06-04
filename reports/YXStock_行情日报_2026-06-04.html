@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YXStock A股行情日报 · 2026-06-04（周四）</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --up: #f85149;
+      --down: #3fb950;
+      --accent: #58a6ff;
+      --warn: #d29922;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 2rem 1.5rem 3rem;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      max-width: 920px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    h1 { font-size: 1.85rem; margin: 0 0 0.75rem; color: var(--accent); font-weight: 600; }
+    .meta { color: var(--muted); font-size: 0.92rem; line-height: 1.8; }
+    .meta strong { color: var(--text); }
+    .weekday { color: var(--warn); }
+    h2 {
+      font-size: 1.2rem;
+      margin: 2.25rem 0 1rem;
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-weight: 600;
+    }
+    h3 {
+      font-size: 1.02rem;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    p { margin: 0.85rem 0; }
+    strong { color: #fff; font-weight: 600; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 1rem 0 1.25rem;
+      background: var(--surface);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th, td {
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; background: var(--surface2); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(88, 166, 255, 0.06); }
+    .up { color: var(--up); font-weight: 600; }
+    .down { color: var(--down); font-weight: 600; }
+    .lead {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+    }
+    .note {
+      font-size: 0.88rem;
+      color: var(--muted);
+      border-left: 3px solid var(--border);
+      padding: 0.5rem 0 0.5rem 1rem;
+      margin: 1rem 0;
+    }
+    .block {
+      background: var(--surface);
+      border-left: 3px solid var(--accent);
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .block.warn { border-left-color: var(--warn); }
+    ul, ol { padding-left: 1.35rem; margin: 0.75rem 0; }
+    li { margin: 0.4rem 0; }
+    ul.bullets li::marker { color: var(--accent); }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    footer em { font-style: normal; color: var(--muted); }
+    @media print {
+      body { background: #fff; color: #111; padding: 1rem; }
+      .up { color: #c00; } .down { color: #060; }
+      table { border: 1px solid #ccc; }
+      th { background: #f5f5f5; }
+    }
+</style>
+</head>
+<body>
+<header>
+  <h1>YXStock A 股行情日报</h1>
+  <p class="meta">
+    <strong>交易日：</strong>2026 年 6 月 4 日（<span class="weekday">周四</span>）<br />
+    <strong>数据时间：</strong>约 18:47（北京时间）<br />
+    <strong>数据来源：</strong>Stock SDK · 全市场扫描约 5,523 只
+  </p>
+</header>
+
+<section>
+  <h2>一、市场总览</h2>
+  <div class="lead"><p>今日 A 股呈现典型的 <strong>「大盘震荡、结构分化」</strong> 格局；涨停 <strong>80</strong> 家、跌停 <strong>7</strong> 家，涨跌停比约 <strong>11.4:1</strong>。全市场扫描 <strong>5,523</strong> 只，上涨 1344 / 下跌 4120 / 平盘 59。主力资金净流出约 <strong>579 亿元</strong>，赚钱效应集中于主线题材。</p></div>
+  <table><thead><tr><th>指标</th><th>数值</th></tr></thead><tbody>
+    <tr><td>涨停家数</td><td class="up">80</td></tr>
+    <tr><td>跌停家数</td><td class="down">7</td></tr>
+    <tr><td>扫描标的</td><td>5,523</td></tr>
+    <tr><td>两市成交额（约）</td><td>≈ <strong>4.32 万亿</strong></td></tr>
+    <tr><td>大盘主力资金</td><td class="down">净流出约 <strong>579 亿元</strong>（-2.10%）</td></tr></tbody></table>
+  <p class="note">注：行业/概念板块 TOP10 数据源本次拉取失败，板块强弱以下文涨停结构、指数分化及个股榜单综合研判。</p>
+</section>
+
+<section>
+  <h2>二、主要指数</h2>
+  <table><thead><tr><th>指数</th><th>收盘</th><th>涨跌</th><th>涨跌幅</th><th>成交额</th><th>振幅</th></tr></thead><tbody><tr><td>上证指数</td><td>4,057.78</td><td><span class="down">-26.19</span></td><td><span class="down">-0.64%</span></td><td>1.27 万亿</td><td>0.00%</td></tr><tr><td>深证成指</td><td>15,661.57</td><td><span class="down">-43.14</span></td><td><span class="down">-0.27%</span></td><td>1.48 万亿</td><td>0.00%</td></tr><tr><td>创业板指</td><td>4,088.88</td><td><span class="down">-34.11</span></td><td><span class="down">-0.83%</span></td><td>6976 亿</td><td>0.00%</td></tr><tr><td>科创50</td><td>1,738.06</td><td><span class="up">+11.88</span></td><td><span class="up">+0.69%</span></td><td>1326 亿</td><td>0.00%</td></tr><tr><td>沪深300</td><td>4,904.75</td><td><span class="down">-34.06</span></td><td><span class="down">-0.69%</span></td><td>7361 亿</td><td>0.00%</td></tr></tbody></table>
+  <h3>盘中结构</h3>
+  <ul class="bullets"><li><strong>上证指数：</strong>收盘 4057.78（-0.64%），走弱；成交额约 1.27 万亿</li><li><strong>深证成指：</strong>收盘 15661.57（-0.27%），走弱；成交额约 1.48 万亿</li><li><strong>创业板指：</strong>收盘 4088.88（-0.83%），走弱；成交额约 6976 亿</li><li><strong>科创50：</strong>收盘 1738.06（+0.69%），收涨；成交额约 1326 亿</li><li><strong>沪深300：</strong>收盘 4904.75（-0.69%），走弱；成交额约 7361 亿</li></ul>
+</section>
+
+<section>
+  <h2>三、资金面</h2>
+  <h3>3.1 大盘资金流向</h3>
+  <table><thead><tr><th>日期</th><th>主力</th><th>超大单</th><th>大单</th><th>中单</th><th>小单</th></tr></thead><tbody><tr>
+      <td>2026-06-04</td><td class="down"><strong>-579 亿</strong></td>
+      <td class="down">-204 亿</td><td class="down">-375 亿</td>
+      <td class="up">+-13 亿</td><td class="up">+592 亿</td></tr></tbody></table>
+      <p>今日主力净流入 <strong>-579 亿元</strong>（占成交额 -2.10%）。超大单 -204 亿、大单 -375 亿、中单 -13 亿、小单 +592 亿。呈现 <strong>机构减仓、散户承接</strong> 特征，宜结合板块轮动理解，不宜简单解读为全面撤退。</p>
+  <h3>3.2 北向与互联互通</h3>
+  <table><thead><tr><th>通道</th><th>上涨</th><th>平盘</th><th>下跌</th><th>备注</th></tr></thead><tbody><tr><td>沪股通</td><td class="up">393</td><td>12</td><td class="down">1122</td><td>跌多涨少</td></tr><tr><td>港股通(沪)</td><td class="up">126</td><td>24</td><td class="down">454</td><td>净买入约 <strong>39.33 亿</strong></td></tr><tr><td>深股通</td><td class="up">482</td><td>16</td><td class="down">1218</td><td>跌多涨少</td></tr><tr><td>港股通(深)</td><td class="up">126</td><td>24</td><td class="down">454</td><td>净买入约 <strong>-42.48 亿</strong></td></tr></tbody></table>
+  <p>北向标的涨跌：上涨 875 / 下跌 2340（跌多涨少）。</p>
+</section>
+
+<section>
+  <h2>四、涨跌停与短线情绪</h2>
+  <h3>4.1 情绪指标</h3>
+  <ul class="bullets"><li><strong>涨停 80 / 跌停 7：</strong>短线环境 <strong>中性偏暖</strong>。</li><li><strong>连板高度：</strong>最高 <strong>4 连板</strong>。</li><li><strong>20cm 活跃：</strong>山科智能、中船特气、宏达电子、大全能源、鼎通科技、博盈特焊 等。</li></ul>
+  <h3>4.2 涨停主线</h3>
+  <table><thead><tr><th>主线</th><th>代表标的</th><th>逻辑</th></tr></thead><tbody><tr><td><strong>通用设备</strong></td><td>山科智能20cm、锋龙股份、宏盛股份、日发精机</td><td>题材/事件驱动，短线资金博弈</td></tr><tr><td><strong>半导体</strong></td><td>大为股份、中船特气20cm、立昂微、华亚智能</td><td>封测/芯片产业链，算力硬件预期驱动</td></tr><tr><td><strong>电力</strong></td><td>豫能控股(2板)、新中港(2板)、百通能源、梅雁吉祥</td><td>高股息+用电旺季预期</td></tr><tr><td><strong>汽车零部</strong></td><td>万安科技、华锋股份、长源东谷、日盈电子</td><td>题材/事件驱动，短线资金博弈</td></tr><tr><td><strong>塑料</strong></td><td>天洋新材(4板)、双星新材、双象股份、龙辰科技20cm</td><td>新材料/题材博弈</td></tr><tr><td><strong>光学光电</strong></td><td>华映科技、三安光电、京东方Ａ、奥来德20cm</td><td>消费电子与显示产业链</td></tr></tbody></table>
+  <p><strong>跌停侧：</strong>跌幅前列含 <strong>汇金科技</strong>（-14.56%）等，高位题材与前期强势股兑现压力仍存，宜规避缩量追高。</p>
+</section>
+
+<section>
+  <h2>五、涨幅榜 TOP10</h2>
+  <table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>现价</th><th>涨跌幅</th></tr></thead><tbody><tr><td>1</td><td>920161</td><td>龙辰科技</td><td>57.21</td><td class="up">+29.99%</td></tr><tr><td>2</td><td>920096</td><td>嘉晨智能</td><td>63.60</td><td class="up">+20.00%</td></tr><tr><td>3</td><td>688031</td><td>星环科技-U</td><td>152.32</td><td class="up">+20.00%</td></tr><tr><td>4</td><td>688146</td><td>中船特气</td><td>219.19</td><td class="up">+20.00%</td></tr><tr><td>5</td><td>688378</td><td>奥来德</td><td>51.48</td><td class="up">+20.00%</td></tr><tr><td>6</td><td>688668</td><td>鼎通科技</td><td>362.40</td><td class="up">+20.00%</td></tr><tr><td>7</td><td>300726</td><td>宏达电子</td><td>79.92</td><td class="up">+20.00%</td></tr><tr><td>8</td><td>300897</td><td>山科智能</td><td>22.38</td><td class="up">+20.00%</td></tr><tr><td>9</td><td>301123</td><td>奕东电子</td><td>106.79</td><td class="up">+20.00%</td></tr><tr><td>10</td><td>301188</td><td>力诺药包</td><td>54.54</td><td class="up">+20.00%</td></tr></tbody></table>
+  <div class="block"><p><strong>特征：</strong>涨幅前列以 <strong>龙辰科技、嘉晨智能、星环科技-U</strong> 等为主，含 20cm 弹性品种，注意高位换手波动。</p></div>
+</section>
+
+<section>
+  <h2>六、跌幅榜 TOP10</h2>
+  <table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>现价</th><th>涨跌幅</th></tr></thead><tbody><tr><td>1</td><td>300561</td><td>汇金科技</td><td>16.49</td><td class="down">-14.56%</td></tr><tr><td>2</td><td>688496</td><td>*ST清越</td><td>1.32</td><td class="down">-13.73%</td></tr><tr><td>3</td><td>300225</td><td>*ST金泰</td><td>7.68</td><td class="down">-13.02%</td></tr><tr><td>4</td><td>920088</td><td>科力股份</td><td>38.38</td><td class="down">-12.51%</td></tr><tr><td>5</td><td>300761</td><td>立华股份</td><td>17.83</td><td class="down">-12.21%</td></tr><tr><td>6</td><td>300673</td><td>佩蒂股份</td><td>13.86</td><td class="down">-11.83%</td></tr><tr><td>7</td><td>300047</td><td>天源迪科</td><td>10.40</td><td class="down">-11.34%</td></tr><tr><td>8</td><td>300164</td><td>通源石油</td><td>9.66</td><td class="down">-10.22%</td></tr><tr><td>9</td><td>301358</td><td>湖南裕能</td><td>74.35</td><td class="down">-10.12%</td></tr><tr><td>10</td><td>000736</td><td>中交地产</td><td>4.84</td><td class="down">-10.04%</td></tr></tbody></table>
+  <div class="block"><p><strong>特征：</strong>跌幅集中在前期涨幅较大、换手充分的品种，与涨停主线形成 <strong>大类资产内部分化</strong>，宜跟强避弱。</p></div>
+</section>
+
+<section>
+  <h2>七、专业研判与策略提示</h2>
+  <h3>7.1 市场定性</h3>
+  <p>当前处于 <strong>指数箱体震荡 + 结构性行情</strong>：上证 4100–4200 区间反复，涨停维持 80+ 说明题材线仍有机会；主力流向与指数分化并存时，更应视为 <strong>调仓换股</strong>。</p>
+  <h3>7.2 风格与配置</h3>
+  <table><thead><tr><th>维度</th><th>观察</th><th>含义</th></tr></thead><tbody><tr><td>大小盘</td><td>沪深300 ↓、科创50 ↑</td><td>核心资产/权重与硬科技的分化</td></tr><tr><td>南北向</td><td>北向标的跌多涨少</td><td>外资态度偏谨慎，内资主导题材</td></tr><tr><td>产业链</td><td>通用设备 涨停集中</td><td>主线清晰时宜聚焦龙头，避免杂毛</td></tr><tr><td>情绪</td><td>4 板封顶、涨停 80</td><td>适合低吸首板/二板，慎追高位连板</td></tr></tbody></table>
+  <h3>7.3 关键价位与变量</h3>
+  <ul class="bullets"><li><strong>上证：</strong>支撑 <strong>4100</strong>、压力 <strong>4150–4200</strong>；跌破支撑则短线转弱。</li><li><strong>创业板：</strong>关注 <strong>4089</strong> 一带能否站稳。</li><li><strong>量能：</strong>两市合计约 <strong>4.32 万亿</strong>；持续缩量需防阴跌。</li><li><strong>板块：</strong>行业榜单暂不可用，以涨停结构代替。</li></ul>
+  <h3>7.4 明日关注清单</h3>
+  <ol><li><strong>4100 点</strong>附近支撑与量能配合</li><li><strong>涨停家数</strong>能否维持 70+、连板高度是否突破 4 板</li><li><strong>通用设备</strong> 主线持续性</li><li><strong>主力资金</strong>是否出现回流拐点</li><li><strong>成长风格</strong>能否延续</li></ol>
+  <h3>7.5 风险提示</h3>
+  <div class="block warn"><p>本报告基于公开行情接口生成，数据可能存在延迟；<strong>ST、20cm、北交所</strong> 品种波动极大；仅供学习研究，<strong>不构成任何投资建议</strong>。</p></div>
+</section>
+
+<hr />
+<footer><p><em>报告由 YXStock 自动生成 · 2026-06-04（周四）</em></p></footer>
+</body>
+</html>
